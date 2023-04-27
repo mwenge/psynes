@@ -16,6 +16,9 @@
 ;    May you find forgiveness for yourself and forgive others.
 ;    May you share freely, never taking more than you give.
 
+.feature labels_without_colons
+.feature loose_char_term
+
 pixelXPosition                = $02
 pixelYPosition                = $03
 currentIndexToColorValues     = $04
@@ -62,16 +65,150 @@ colorRamHiPtr                 = $FC
 
 .include "constants.asm"
 
-* = $0801
-;-----------------------------------------------------------------------------------
-; Start program at InitializeProgram (SYS 2064)
-; SYS 2064 ($0810)
-; $9E = SYS
-; $32,$30,$36,$34 = 2064
-;-----------------------------------------------------------------------------------
-        .BYTE $0B,$08,$C1,$07,$9E,$32,$30,$36,$34
+.SEGMENT "HEADER"
 
-        .BYTE $00,$00,$00,$F9,$02,$F9
+INES_MAPPER = 0 ; 0 = NROM
+INES_MIRROR = 1 ; 0 = HORIZONTAL MIRRORING, 1 = VERTICAL MIRRORING
+INES_SRAM   = 0 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
+
+.BYTE 'N', 'E', 'S', $1A ; ID
+.BYTE $02 ; 16K PRG CHUNK COUNT
+.BYTE $01 ; 8K CHR CHUNK COUNT
+.BYTE INES_MIRROR | (INES_SRAM << 1) | ((INES_MAPPER & $F) << 4)
+.BYTE (INES_MAPPER & %11110000)
+.BYTE $0, $0, $0, $0, $0, $0, $0, $0 ; PADDING
+
+;
+; CHR ROM
+;
+
+.SEGMENT "TILES"
+;.INCBIN "background.chr"
+
+;
+; VECTORS PLACED AT TOP 6 BYTES OF MEMORY AREA
+;
+
+.SEGMENT "VECTORS"
+.WORD nmi
+;.WORD reset
+;.WORD irq
+
+; nmi routine
+;
+
+.segment "ZEROPAGE"
+NMI_LOCK:       .RES 1 ; PREVENTS NMI RE-ENTRY
+NMI_COUNT:      .RES 1 ; IS INCREMENTED EVERY NMI
+NMI_READY:      .RES 1 ; SET TO 1 TO PUSH A PPU FRAME UPDATE, 2 TO TURN RENDERING OFF NEXT NMI
+NMT_UPDATE_LEN: .RES 1 ; NUMBER OF BYTES IN NMT_UPDATE BUFFER
+SCROLL_X:       .RES 1 ; X SCROLL POSITION
+SCROLL_Y:       .RES 1 ; Y SCROLL POSITION
+SCROLL_NMT:     .RES 1 ; NAMETABLE SELECT (0-3 = $2000,$2400,$2800,$2C00)
+TEMP:           .RES 1 ; TEMPORARY VARIABLE
+
+.segment "BSS"
+NMT_UPDATE: .RES 256 ; NAMETABLE UPDATE ENTRY BUFFER FOR PPU UPDATE
+PALETTE:    .RES 32  ; PALETTE BUFFER FOR PPU UPDATE
+
+.segment "OAM"
+OAM: .RES 256        ; SPRITE OAM DATA TO BE UPLOADED BY DMA
+
+.segment "CODE"
+nmi:
+	; save registers
+	PHA
+	TXA
+	PHA
+	TYA
+	PHA
+	; PREVENT NMI RE-ENTRY
+	LDA NMI_LOCK
+	BEQ :+
+		JMP @NMI_END
+	:
+	LDA #1
+	STA NMI_LOCK
+	; INCREMENT FRAME COUNTER
+	INC NMI_COUNT
+	;
+	LDA NMI_READY
+	BNE :+ ; NMI_READY == 0 NOT READY TO UPDATE PPU
+		JMP @PPU_UPDATE_END
+	:
+	CMP #2 ; NMI_READY == 2 TURNS RENDERING OFF
+	BNE :+
+		LDA #%00000000
+		STA $2001
+		LDX #0
+		STX NMI_READY
+		JMP @PPU_UPDATE_END
+	:
+	; SPRITE OAM DMA
+	LDX #0
+	STX $2003
+	LDA #>OAM
+	STA $4014
+	; PALETTES
+	LDA #%10001000
+	STA $2000 ; SET HORIZONTAL NAMETABLE INCREMENT
+	LDA $2002
+	LDA #$3F
+	STA $2006
+	STX $2006 ; SET PPU ADDRESS TO $3F00
+	LDX #0
+	:
+		LDA PALETTE, X
+		STA $2007
+		INX
+		CPX #32
+		BCC :-
+	; NAMETABLE UPDATE
+	LDX #0
+	CPX NMT_UPDATE_LEN
+	BCS @SCROLL
+	@NMT_UPDATE_LOOP:
+		LDA NMT_UPDATE, X
+		STA $2006
+		INX
+		LDA NMT_UPDATE, X
+		STA $2006
+		INX
+		LDA NMT_UPDATE, X
+		STA $2007
+		INX
+		CPX NMT_UPDATE_LEN
+		BCC @NMT_UPDATE_LOOP
+	LDA #0
+	STA NMT_UPDATE_LEN
+@SCROLL:
+	LDA SCROLL_NMT
+	AND #%00000011 ; KEEP ONLY LOWEST 2 BITS TO PREVENT ERROR
+	ORA #%10001000
+	STA $2000
+	LDA SCROLL_X
+	STA $2005
+	LDA SCROLL_Y
+	STA $2005
+	; ENABLE RENDERING
+	LDA #%00011110
+	STA $2001
+	; FLAG PPU UPDATE COMPLETE
+	LDX #0
+	STX NMI_READY
+@PPU_UPDATE_END:
+	; IF THIS ENGINE HAD MUSIC/SOUND, THIS WOULD BE A GOOD PLACE TO PLAY IT
+	; UNLOCK RE-ENTRY FLAG
+	LDA #0
+	STA NMI_LOCK
+@NMI_END:
+	; RESTORE REGISTERS AND RETURN
+	PLA
+	TAY
+	PLA
+	TAX
+	PLA
+	RTI
 
 ;-------------------------------------------------------
 ; InitializeProgram
@@ -338,7 +475,7 @@ randomByteAddress   =*+$01
         INC randomByteAddress
         RTS 
 
-        BRK #$00
+        .BYTE $00,$00
 
 ;-------------------------------------------------------
 ; PaintPixelForCurrentSymmetry
@@ -505,7 +642,7 @@ symmetrySettingForStepCount
 ReinitializeSequences
         LDX #$00
         TXA 
-_Loop   STA pixelXPositionArray,X
+@Loop   STA pixelXPositionArray,X
         STA pixelYPositionArray,X
         LDA #$FF
         STA baseLevelArray,X
@@ -516,7 +653,7 @@ _Loop   STA pixelXPositionArray,X
         STA symmetrySettingForStepCount,X
         INX 
         CPX #$40
-        BNE _Loop
+        BNE @Loop
 
         STA timerBetweenKeyStrokes
         STA currentPatternElement
@@ -533,10 +670,10 @@ LaunchPsychedelia
         JSR SetUpInterruptHandlers
 
         LDX #$10
-_Loop   TXA 
+@Loop   TXA 
         STA SetUpInterruptHandlers,X
         DEX 
-        BNE _Loop
+        BNE @Loop
 
         JSR ReinitializeScreen
         JSR ReinitializeSequences
@@ -555,18 +692,18 @@ MainPaintLoop
         ; Left/Right cursor key pauses the paint animation.
         ; This section just loops around if the left/right keys
         ; are pressed and keeps looping until they're pressed again.
-_Loop   LDA lastKeyPressed
+@Loop   LDA lastKeyPressed
         CMP #$40 ;  No key pressed
-        BNE _Loop
+        BNE @Loop
 
-_Loop2  LDA lastKeyPressed
+@Loop2  LDA lastKeyPressed
         CMP #$02 ; Left/Right cursor key
-        BNE _Loop2
+        BNE @Loop2
 
         ; Keep looping until key pressed again.
-_Loop3  LDA lastKeyPressed
+@Loop3  LDA lastKeyPressed
         CMP #$40 ;No key pressed
-        BNE _Loop3
+        BNE @Loop3
 
         ; Check if we can just do a normal paint or if
         ; we have to handle a customer preset mode or
@@ -1212,12 +1349,12 @@ JustLPressed
         ; Briefly display the new linemode setting on the bottom of the screen.
         JSR ClearLastLineOfScreen
         LDX #$00
-_Loop   LDA lineModeSettingDescriptions,Y
+@Loop   LDA lineModeSettingDescriptions,Y
         STA lastLineBufferPtr,X
         INY 
         INX 
         CPX #$10
-        BNE _Loop
+        BNE @Loop
         JMP WriteLastLineBufferToScreen
         ; Returns
 
@@ -1435,12 +1572,12 @@ MaybeUpArrowPressed
 
         ; Rewrite the screen using the new pixel.
         LDX #$00
-_Loop   STA SCREEN_RAM + $0000,X
+@Loop   STA SCREEN_RAM + $0000,X
         STA SCREEN_RAM + $0100,X
         STA SCREEN_RAM + $0200,X
         STA SCREEN_RAM + $02C0,X
         DEX 
-        BNE _Loop
+        BNE @Loop
         STA currentPixel
         RTS 
 
@@ -1528,37 +1665,22 @@ b1229   LDA lastLineBufferPtr - $01,X
         BNE b1229
         RTS 
 
-.enc "petscii"  ;define an ascii->petscii encoding
-        .cdef "{{", $A8  ;characters
-        .cdef "}}", $A9  ;characters
-        .cdef "@@", $AC  ;characters
-        .cdef "??", $BF  ;characters
-        .cdef "  ", $A0  ;characters
-        .cdef "--", $AD  ;characters
-        .cdef ",,", $2c  ;characters
-        .cdef "..", $ae  ;characters
-        .cdef "AZ", $c1
-        .cdef "az", $41
-        .cdef "11", $31
-.enc "none"
 
 txtPresetPatternNames
-.enc "petscii" 
-        .TEXT 'STAR ONE        '
-        .TEXT 'THE TWIST       '
-        .TEXT 'LA LLAMITA      '
-        .TEXT 'STAR TWO        '
-        .TEXT 'DELTOIDS        '
-        .TEXT 'DIFFUSED        '
-        .TEXT 'MULTICROSS      '
-        .TEXT 'PULSAR          '
+        .BYTE "STAR ONE        "
+        .BYTE "THE TWIST       "
+        .BYTE "LA LLAMITA      "
+        .BYTE "STAR TWO        "
+        .BYTE "DELTOIDS        "
+        .BYTE "DIFFUSED        "
+        .BYTE "MULTICROSS      "
+        .BYTE "PULSAR          "
 txtSymmetrySettingDescriptions 
-        .TEXT 'NO SYMMETRY     '
-        .TEXT 'Y-AXIS SYMMETRY '
-        .TEXT 'X-Y SYMMETRY    '
-        .TEXT 'X-AXIS SYMMETRY '
-        .TEXT 'QUAD SYMMETRY   '
-.enc "none"
+        .BYTE "NO SYMMETRY     "
+        .BYTE "Y-AXIS SYMMETRY "
+        .BYTE "X-Y SYMMETRY    "
+        .BYTE "X-AXIS SYMMETRY "
+        .BYTE "QUAD SYMMETRY   "
 
 ;-------------------------------------------------------
 ; PaintLineMode
@@ -1614,11 +1736,9 @@ ResetIndexAndExitLineModePaint
         STX shouldDrawCursor
         JMP MainPaintLoop
 
-.enc "petscii" 
 lineModeSettingDescriptions
-        .TEXT 'LINE MODE',$BA,' OFF  '
-        .TEXT 'LINE MODE',$BA,' ON   '
-.enc "none"
+        .BYTE "LINE MODE",$BA," OFF  "
+        .BYTE "LINE MODE",$BA," ON   "
 ;-------------------------------------------------------
 ; DrawColorValueBar
 ;-------------------------------------------------------
@@ -1742,9 +1862,9 @@ b1417   LDA baseLevelArray,X
         STA currentStepCount
 
 UpdateVariableDisplay   
-        LDA #>SCREEN_RAM + $03D0
+        LDA #>$D7D0
         STA colorBarColorRamHiPtr
-        LDA #<SCREEN_RAM + $03D0
+        LDA #<$D7D0
         STA colorBarColorRamLoPtr
 
         LDX currentVariableMode
@@ -1793,9 +1913,9 @@ MaybeEnterPressed
 ;-------------------------------------------------------
 DisplayVariableSelection    
         ; Set the pointers to the position on screen for the color bar.
-        LDA #>SCREEN_RAM + $03D0
+        LDA #>$D7D0
         STA colorBarColorRamHiPtr
-        LDA #<SCREEN_RAM + $03D0
+        LDA #<$D7D0
         STA colorBarColorRamLoPtr
 
         LDX currentVariableMode
@@ -1893,18 +2013,16 @@ currentVariableMode               .BYTE $00
 currentPulseSpeedCounter         .BYTE $01
 
 txtVariableLabels   
-.enc "petscii" 
-        .TEXT '                '
-        .TEXT 'SMOOTHING DELAY',$BA
-        .TEXT 'CURSOR SPEED   ',$BA
-        .TEXT 'BUFFER LENGTH  ',$BA
-        .TEXT 'PULSE SPEED    ',$BA
-        .TEXT 'COLOUR ',$B0,' SET   ',$BA
-        .TEXT 'WIDTH OF LINE  ',$BA
-        .TEXT 'SEQUENCER SPEED',$BA
-        .TEXT 'PULSE WIDTH    ',$BA
-        .TEXT 'BASE LEVEL     ',$BA
-.enc "none" 
+        .BYTE "                "
+        .BYTE "SMOOTHING DELAY",$BA
+        .BYTE "CURSOR SPEED   ",$BA
+        .BYTE "BUFFER LENGTH  ",$BA
+        .BYTE "PULSE SPEED    ",$BA
+        .BYTE "COLOUR ",$B0," SET   ",$BA
+        .BYTE "WIDTH OF LINE  ",$BA
+        .BYTE "SEQUENCER SPEED",$BA
+        .BYTE "PULSE WIDTH    ",$BA
+        .BYTE "BASE LEVEL     ",$BA
 colorValuesPtr   
         .BYTE $00
 
@@ -1913,10 +2031,8 @@ colorBarValues  .BYTE BLUE,RED,PURPLE,GREEN,CYAN,YELLOW,WHITE,ORANGE
 
 txtTrackingOnOff   
 
-.enc "petscii" 
-        .TEXT 'TRACKING',$BA,' OFF   '
-        .TEXT 'TRACKING',$BA,' ON    '
-.enc "none" 
+        .BYTE "TRACKING",$BA," OFF   "
+        .BYTE "TRACKING",$BA," ON    "
 
 
 ;-------------------------------------------------------
@@ -1959,13 +2075,11 @@ WriteLastLineBufferAndReturn
         JSR WriteLastLineBufferToScreen
         RTS 
 
-.enc "petscii" 
 txtPreset
-        .TEXT 'PRESET ',$B0,$B0,'      ',$BA
+        .BYTE "PRESET ",$B0,$B0,"      ",$BA
 txtPresetActivatedStored
-        .TEXT ' ACTIVATED       '
-        .TEXT 'DATA STORED    '
-.enc "none" 
+        .BYTE " ACTIVATED       "
+        .BYTE "DATA STORED    "
 shiftPressed
         .BYTE $00
 
@@ -2114,7 +2228,7 @@ ReinitializeScreen
 
         LDX #$00
         LDA #$FF
-b172a   STA baseLevelArray,X
+b172A   STA baseLevelArray,X
         INX
         CPX #$40
         BNE b172A
@@ -2177,10 +2291,8 @@ b177B   LDA #$FF
 functionKeyToSequenceArray   .BYTE <burstGeneratorF1,<burstGeneratorF2
                              .BYTE <burstGeneratorF3,<burstGeneratorF4
 
-.enc "petscii" 
 txtDataFree
-        .TEXT 'DATA',$BA,' ',$B0,$B0,$B0,' FREE  '
-.enc "none" 
+        .BYTE "DATA",$BA," ",$B0,$B0,$B0," FREE  "
 functionKeys
         .BYTE $04,$05,$06,$03
 
@@ -2533,10 +2645,8 @@ ResetSequencerToStart
         RTS 
 
 stepsRemainingInSequencerSequence   .BYTE $00
-.enc "petscii" 
 txtSequFree
-        .TEXT 'SEQU',$BA,' ',$B0,$B0,$B0,' FREE  '
-.enc "none" 
+        .BYTE "SEQU",$BA," ",$B0,$B0,$B0," FREE  "
 
 ;-------------------------------------------------------
 ; DisplaySequencerState
@@ -2559,11 +2669,9 @@ b1A18   LDA txtSequencer,Y
         BNE b1A18
         JMP WriteLastLineBufferToScreen
 
-.enc "petscii" 
 txtSequencer
-      .TEXT 'SEQUENCER OFF   '
-      .TEXT 'SEQUENCER ON    '
-.enc "none" 
+      .BYTE "SEQUENCER OFF   "
+      .BYTE "SEQUENCER ON    "
 dataFreeForSequencer
       .BYTE $00
 prevSequencePtrLo
@@ -2665,10 +2773,8 @@ b1AC5   LDA #$00
         STA displaySavePromptActive
         RTS 
 
-.enc "petscii" 
 txtPlayBackRecord
-        .TEXT 'PLAYING BACK',$AE,$AE,$AE,$AE,'RECORDING',$AE,$AE,$AE,$AE,$AE,$AE,$AE
-.enc "none" 
+        .BYTE "PLAYING BACK",$AE,$AE,$AE,$AE,"RECORDING",$AE,$AE,$AE,$AE,$AE,$AE,$AE
 
 ;-------------------------------------------------------
 ; DisplayStoppedRecording
@@ -2688,10 +2794,8 @@ b1B0D   LDA txtStopped,Y
         JMP WriteLastLineBufferToScreen
         ; Returns
 
-.enc "petscii" 
 txtStopped
-        .TEXT 'STOPPED         '
-.enc "none" 
+        .BYTE "STOPPED         "
 playbackOrRecordActive
         .BYTE $00
 
@@ -2821,10 +2925,8 @@ a1BEA
         .BYTE $00
 displaySavePromptActive
         .BYTE $00
-.enc "petscii" 
 txtDefineAllLevelPixels
-        .TEXT 'DEFINE ALL LEVEL ',$B2,' PIXELS'
-.enc "none" 
+        .BYTE "DEFINE ALL LEVEL ",$B2," PIXELS"
 
 ;-------------------------------------------------------
 ; EditCustomPattern
@@ -3037,10 +3139,8 @@ txtPatternLoop
         JMP WriteLastLineBufferToScreen
         ; Returns
 
-.enc "petscii" 
 txtCustomPatterns
-        .TEXT 'USER SHAPE '
-.enc "none" 
+        .BYTE "USER SHAPE "
         .BYTE $A3,$B0
 pixelShapeIndex
         .BYTE $00
@@ -3170,7 +3270,7 @@ b1E30   LDA txtSavePrompt,X
         JSR WriteLastLineBufferToScreen
 b1E43   RTS 
 
-txtSavePrompt   .TEXT " SAVE (P)ARAMETERS, (M)OTION, (A)BORT?  "
+txtSavePrompt   .BYTE " SAVE (P)ARAMETERS, (M)OTION, (A)BORT?  "
 
 ;-------------------------------------------------------
 ; CheckKeyboardInputWhileSavePromptActive
@@ -3273,11 +3373,9 @@ b1EE5   CMP #$14 ; 'C'
 
 b1EFB   RTS 
 
-.enc "petscii" 
 txtContinueLoadOrAbort
-        .TEXT '{C}ONTINUE LOAD@ OR {A}BORT? '
-        .TEXT '           '
-.enc "none" 
+        .BYTE "{C}ONTINUE LOAD@ OR {A}BORT? "
+        .BYTE "           "
 demoModeActive          .BYTE $00
 joystickInputDebounce   .BYTE $01
 joystickInputRandomizer .BYTE $10
@@ -3336,9 +3434,9 @@ b1F73   LDA demoMessage,X
         JMP WriteLastLineBufferToScreen
 
 demoMessage
-        .TEXT "      PSYCHEDELIA BY JEFF MINTER         "
+        .BYTE "      PSYCHEDELIA BY JEFF MINTER         "
 
-* = $1FA9
+;* = $1FA9
 demoModeCountDownToChangePreset
         .BYTE $20
 
@@ -3378,21 +3476,21 @@ MovePresetDataIntoPosition
         STA copyToHiPtr
 
         LDX #$10
-_Loop   LDA (copyFromLoPtr),Y
+@Loop   LDA (copyFromLoPtr),Y
         STA (copyToLoPtr),Y
         DEY 
-        BNE _Loop
+        BNE @Loop
 
         INC copyFromHiPtr
         INC copyToHiPtr
         DEX 
-        BNE _Loop
+        BNE @Loop
 
         LDX #$09
-_Loop2  LDA originalStorageOfSomeKind,X
+@Loop2  LDA originalStorageOfSomeKind,X
         STA storageOfSomeKind,X
         DEX 
-        BNE _Loop2
+        BNE @Loop2
         RTS 
 
 originalStorageOfSomeKind=*-$01   

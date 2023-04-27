@@ -5,11 +5,11 @@ X64 = fceux
 
 all: clean run
 
-psychedelia.prg: src/c64/psychedelia.asm
-	ca65 src/psychedelia.asm -g -o psychedelia.o
+psychedelia.prg:
+	ca65 src/psychedelia.asm -l bin/psychedelia.lst -o psychedelia.o
 	ld65 -o bin/psychedelia.nes -C psychedelia.cfg psychedelia.o
 
-run: d64
+run: psychedelia.prg
 	$(X64) -verbose $(D64_IMAGE)
 
 clean:
