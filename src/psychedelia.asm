@@ -19,48 +19,50 @@
 .feature labels_without_colons
 .feature loose_char_term
 
-pixelXPosition                = $02
-pixelYPosition                = $03
-currentIndexToColorValues     = $04
-currentLineInColorRamLoPtr2   = $05
-currentLineInColorRamHiPtr2   = $06
-previousPixelXPositionZP      = $08
-previousPixelYPositionZP      = $09
-currentLineInColorRamLoPtr    = $0A
-currentLineInColorRamHiPtr    = $0B
-currentColorToPaint           = $0C
-xPosLoPtr                     = $0D
-xPosHiPtr                     = $0E
-currentPatternElement         = $0F
-yPosLoPtr                     = $10
-yPosHiPtr                     = $11
-timerBetweenKeyStrokes        = $12
-shouldDrawCursor              = $13
-currentSymmetrySettingForStep = $14
-currentSymmetrySetting        = $15
-offsetForYPos                 = $16
-skipPixel                     = $17
-colorBarColorRamLoPtr         = $18
-colorBarColorRamHiPtr         = $19
-currentColorSet               = $1A
-presetSequenceDataLoPtr       = $1B
-presetSequenceDataHiPtr       = $1C
-currentSequencePtrLo          = $1D
-currentSequencePtrHi          = $1E
-lastJoystickInput             = $21
-customPatternLoPtr            = $22
-customPatternHiPtr            = $23
-minIndexToColorValues         = $24
-initialIndexToColorValues     = $25
-currentIndexToPresetValue     = $26
-lastKeyPressed                = $C5
-presetLoPtr                   = $FE
-presetHiPtr                   = $FF
+.segment "ZEROPAGE"
+pixelXPosition                
+pixelYPosition                
+currentIndexToColorValues     
+currentLineInColorRamLoPtr2   
+currentLineInColorRamHiPtr2   
+previousPixelXPositionZP      
+previousPixelYPositionZP      
+currentLineInColorRamLoPtr    
+currentLineInColorRamHiPtr    
+currentColorToPaint           
+xPosLoPtr                     
+xPosHiPtr                     
+currentPatternElement         
+yPosLoPtr                     
+yPosHiPtr                     
+timerBetweenKeyStrokes        
+shouldDrawCursor              
+currentSymmetrySettingForStep 
+currentSymmetrySetting        
+offsetForYPos                 
+skipPixel                     
+colorBarColorRamLoPtr         
+colorBarColorRamHiPtr         
+currentColorSet               
+presetSequenceDataLoPtr       
+presetSequenceDataHiPtr       
+currentSequencePtrLo          
+currentSequencePtrHi          
+lastJoystickInput             
+customPatternLoPtr            
+customPatternHiPtr            
+minIndexToColorValues         
+initialIndexToColorValues     
+currentIndexToPresetValue     
+lastKeyPressed                
+presetLoPtr                   
+presetHiPtr                   
+colorRamLoPtr                
+colorRamHiPtr                
+
 shiftKey                      = $028D
 storageOfSomeKind             = $7FFF
 presetSequenceData            = $C000
-colorRamLoPtr                 = $FB
-colorRamHiPtr                 = $FC
 
 
 .include "constants.asm"
@@ -90,125 +92,202 @@ INES_SRAM   = 0 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 ;
 
 .SEGMENT "VECTORS"
-.WORD nmi
-;.WORD reset
-;.WORD irq
+.WORD MainNMIInterruptHandler ; NMI
+.WORD InitializeNES        ; Reset
+.WORD MainInterruptHandler ; IRQ interrupt handler
 
 ; nmi routine
 ;
 
 .segment "ZEROPAGE"
-NMI_LOCK:       .RES 1 ; PREVENTS NMI RE-ENTRY
-NMI_COUNT:      .RES 1 ; IS INCREMENTED EVERY NMI
-NMI_READY:      .RES 1 ; SET TO 1 TO PUSH A PPU FRAME UPDATE, 2 TO TURN RENDERING OFF NEXT NMI
-NMT_UPDATE_LEN: .RES 1 ; NUMBER OF BYTES IN NMT_UPDATE BUFFER
-SCROLL_X:       .RES 1 ; X SCROLL POSITION
-SCROLL_Y:       .RES 1 ; Y SCROLL POSITION
-SCROLL_NMT:     .RES 1 ; NAMETABLE SELECT (0-3 = $2000,$2400,$2800,$2C00)
-TEMP:           .RES 1 ; TEMPORARY VARIABLE
+NMI_LOCK       .res 1 ; PREVENTS NMI RE-ENTRY
+NMI_COUNT      .res 1 ; IS INCREMENTED EVERY NMI
+NMI_READY      .res 1 ; SET TO 1 TO PUSH A PPU FRAME UPDATE, 2 TO TURN RENDERING OFF NEXT NMI
+NMT_UPDATE_LEN .res 1 ; NUMBER OF BYTES IN NMT_UPDATE BUFFER
+SCROLL_X       .res 1 ; X SCROLL POSITION
+SCROLL_Y       .res 1 ; Y SCROLL POSITION
+SCROLL_NMT     .res 1 ; NAMETABLE SELECT (0-3 = $2000,$2400,$2800,$2C00)
+TEMP           .res 1 ; TEMPORARY VARIABLE
 
-.segment "BSS"
-NMT_UPDATE: .RES 256 ; NAMETABLE UPDATE ENTRY BUFFER FOR PPU UPDATE
-PALETTE:    .RES 32  ; PALETTE BUFFER FOR PPU UPDATE
+.segment "RAM"
+NMT_UPDATE .res 256 ; NAMETABLE UPDATE ENTRY BUFFER FOR PPU UPDATE
+PALETTE    .res 32  ; PALETTE BUFFER FOR PPU UPDATE
 
 .segment "OAM"
-OAM: .RES 256        ; SPRITE OAM DATA TO BE UPLOADED BY DMA
+OAM .res 256        ; SPRITE OAM DATA TO BE UPLOADED BY DMA
 
 .segment "CODE"
-nmi:
-	; save registers
-	PHA
-	TXA
-	PHA
-	TYA
-	PHA
-	; PREVENT NMI RE-ENTRY
-	LDA NMI_LOCK
-	BEQ :+
-		JMP @NMI_END
+;-------------------------------------------------------
+; InitializeNES
+;-------------------------------------------------------
+InitializeNES
+	SEI       ; MASK INTERRUPTS
+	LDA #0
+	STA $2000 ; DISABLE NMI
+	STA $2001 ; DISABLE RENDERING
+	STA $4015 ; DISABLE APU SOUND
+	STA $4010 ; DISABLE DMC IRQ
+	LDA #$40
+	STA $4017 ; DISABLE APU IRQ
+	CLD       ; DISABLE DECIMAL MODE
+	LDX #$FF
+	TXS       ; INITIALIZE STACK
+	; WAIT FOR FIRST VBLANK
+	BIT $2002
 	:
-	LDA #1
-	STA NMI_LOCK
-	; INCREMENT FRAME COUNTER
-	INC NMI_COUNT
-	;
-	LDA NMI_READY
-	BNE :+ ; NMI_READY == 0 NOT READY TO UPDATE PPU
-		JMP @PPU_UPDATE_END
-	:
-	CMP #2 ; NMI_READY == 2 TURNS RENDERING OFF
-	BNE :+
-		LDA #%00000000
-		STA $2001
-		LDX #0
-		STX NMI_READY
-		JMP @PPU_UPDATE_END
-	:
-	; SPRITE OAM DMA
+		BIT $2002
+		BPL :-
+	; CLEAR ALL RAM TO 0
+	LDA #0
 	LDX #0
-	STX $2003
-	LDA #>OAM
-	STA $4014
-	; PALETTES
+	:
+		STA $0000, X
+		STA $0100, X
+		STA $0200, X
+		STA $0300, X
+		STA $0400, X
+		STA $0500, X
+		STA $0600, X
+		STA $0700, X
+		INX
+		BNE :-
+	; PLACE ALL SPRITES OFFSCREEN AT Y=255
+	LDA #255
+	LDX #0
+	:
+		STA OAM, X
+		INX
+		INX
+		INX
+		INX
+		BNE :-
+	; WAIT FOR SECOND VBLANK
+	:
+		BIT $2002
+		BPL :-
+	; NES IS INITIALIZED, READY TO BEGIN!
+	; ENABLE THE NMI FOR GRAPHICAL UPDATES, AND JUMP TO OUR MAIN PROGRAM
 	LDA #%10001000
-	STA $2000 ; SET HORIZONTAL NAMETABLE INCREMENT
-	LDA $2002
-	LDA #$3F
-	STA $2006
-	STX $2006 ; SET PPU ADDRESS TO $3F00
-	LDX #0
-	:
-		LDA PALETTE, X
-		STA $2007
-		INX
-		CPX #32
-		BCC :-
-	; NAMETABLE UPDATE
-	LDX #0
-	CPX NMT_UPDATE_LEN
-	BCS @SCROLL
-	@NMT_UPDATE_LOOP:
-		LDA NMT_UPDATE, X
-		STA $2006
-		INX
-		LDA NMT_UPDATE, X
-		STA $2006
-		INX
-		LDA NMT_UPDATE, X
-		STA $2007
-		INX
-		CPX NMT_UPDATE_LEN
-		BCC @NMT_UPDATE_LOOP
-	LDA #0
-	STA NMT_UPDATE_LEN
-@SCROLL:
-	LDA SCROLL_NMT
-	AND #%00000011 ; KEEP ONLY LOWEST 2 BITS TO PREVENT ERROR
-	ORA #%10001000
 	STA $2000
-	LDA SCROLL_X
-	STA $2005
-	LDA SCROLL_Y
-	STA $2005
-	; ENABLE RENDERING
-	LDA #%00011110
-	STA $2001
-	; FLAG PPU UPDATE COMPLETE
-	LDX #0
-	STX NMI_READY
-@PPU_UPDATE_END:
-	; IF THIS ENGINE HAD MUSIC/SOUND, THIS WOULD BE A GOOD PLACE TO PLAY IT
-	; UNLOCK RE-ENTRY FLAG
-	LDA #0
-	STA NMI_LOCK
-@NMI_END:
-	; RESTORE REGISTERS AND RETURN
-	PLA
-	TAY
-	PLA
-	TAX
-	PLA
-	RTI
+	JMP InitializeProgram
+
+.segment "CODE"
+;-------------------------------------------------------
+; MainNMIInterruptHandler
+;-------------------------------------------------------
+MainNMIInterruptHandler
+        ; save registers
+        PHA
+        TXA
+        PHA
+        TYA
+        PHA
+        ; PREVENT NMI RE-ENTRY
+        LDA NMI_LOCK
+        BEQ :+
+          JMP @NMI_END
+        :
+        LDA #1
+        STA NMI_LOCK
+        ; INCREMENT FRAME COUNTER
+        INC NMI_COUNT
+        ;
+        LDA NMI_READY
+        BNE :+ ; NMI_READY == 0 NOT READY TO UPDATE PPU
+          JMP @PPU_UPDATE_END
+        :
+        CMP #2 ; NMI_READY == 2 TURNS RENDERING OFF
+        BNE :+
+          LDA #%00000000
+          STA $2001
+          LDX #0
+          STX NMI_READY
+          JMP @PPU_UPDATE_END
+        :
+
+        ; SPRITE OAM DMA
+        LDX #0
+        STX $2003
+        LDA #>OAM
+        STA $4014
+        ; PALETTES
+        LDA #%10001000
+        STA $2000 ; SET HORIZONTAL NAMETABLE INCREMENT
+        LDA $2002
+        LDA #$3F
+        STA $2006
+        STX $2006 ; SET PPU ADDRESS TO $3F00
+
+        LDX #0
+        :
+          LDA PALETTE, X
+          STA $2007
+          INX
+          CPX #32
+          BCC :-
+
+        ; NAMETABLE UPDATE
+        LDX #0
+        CPX NMT_UPDATE_LEN
+        BCS @SCROLL
+
+@NMT_UPDATE_LOOP
+          LDA NMT_UPDATE, X
+          STA $2006
+          INX
+          LDA NMT_UPDATE, X
+          STA $2006
+          INX
+          LDA NMT_UPDATE, X
+          STA $2007
+          INX
+          CPX NMT_UPDATE_LEN
+          BCC @NMT_UPDATE_LOOP
+        LDA #0
+        STA NMT_UPDATE_LEN
+
+@SCROLL
+        LDA SCROLL_NMT
+        AND #%00000011 ; KEEP ONLY LOWEST 2 BITS TO PREVENT ERROR
+        ORA #%10001000
+        STA $2000
+        LDA SCROLL_X
+        STA $2005
+        LDA SCROLL_Y
+        STA $2005
+        ; ENABLE RENDERING
+        LDA #%00011110
+        STA $2001
+        ; FLAG PPU UPDATE COMPLETE
+        LDX #0
+        STX NMI_READY
+
+@PPU_UPDATE_END
+        ; IF THIS ENGINE HAD MUSIC/SOUND, THIS WOULD BE A GOOD PLACE TO PLAY IT
+        ; UNLOCK RE-ENTRY FLAG
+        LDA #0
+        STA NMI_LOCK
+
+@NMI_END
+        ; RESTORE REGISTERS AND RETURN
+        PLA
+        TAY
+        PLA
+        TAX
+        PLA
+        RTI
+
+;-------------------------------------------------------
+; ppu_update:
+;-------------------------------------------------------
+; ppu_update: waits until next NMI, turns rendering on (if not already), uploads OAM, palette, and nametable update to PPU
+PPU_Update
+	LDA #1
+	STA NMI_READY
+	:
+		LDA NMI_READY
+		BNE :-
+	RTS
 
 ;-------------------------------------------------------
 ; InitializeProgram
@@ -218,8 +297,6 @@ InitializeProgram
         LDA #$00
         STA $D020    ;Border Color
         STA $D021    ;Background Color 0
-
-        JSR MovePresetDataIntoPosition
 
         STA shouldDrawCursor
 
@@ -252,15 +329,10 @@ b0827   LDA colorRamHiPtr
         LDA #$80
         STA $0291 ; Disable character set case change
 
-        ; Points character memory to $1000 (i.e. the ROM IMAGE,
-        ; rather than the adress in RAM here)
-        LDA #$15
-        STA $D018    ;VIC Memory Control Register
-
-        JSR ROM_IOINIT ;$FF84 - initialize CIA & IRQ             
-        JSR InitializeDynamicStorage
+        ; JSR InitializeDynamicStorage
         JMP LaunchPsychedelia
 
+.segment "RAM"
 colorRAMLineTableLoPtrArray
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
@@ -272,6 +344,7 @@ colorRAMLineTableHiPtrArray
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; InitializeScreenWithInitCharacter
 ;-------------------------------------------------------
@@ -464,8 +537,10 @@ starOneYPosArray  .BYTE $FF,$FF,$00,$01,$01,$01,$00,$FF,$55       ; 5  3210 0123
                   .BYTE $55                                       ;                
                                                                   ;        5       
 
+.segment "RAM"
 countToMatchCurrentIndex   .BYTE $00
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; PutRandomByteInAccumulator
 ;-------------------------------------------------------
@@ -572,6 +647,7 @@ XYSymmetry
         STA pixelXPosition
         RTS 
 
+.segment "RAM"
 pixelXPositionArray
         .BYTE $00,$00,$FF,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
@@ -636,6 +712,7 @@ symmetrySettingForStepCount
         .BYTE $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
         .BYTE $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; ReinitializeSequences
 ;-------------------------------------------------------
@@ -781,8 +858,10 @@ ShouldDoAPaint
 GoBackToStartOfLoop   
         JMP MainPaintLoop
 
+.segment "RAM"
 currentBufferLength   .BYTE $00
 
+.segment "CODE"
 PaintLineModeAndLoop
         ; Loops back to MainPaintLoop
         JMP PaintLineMode
@@ -1033,6 +1112,7 @@ UpdateLineinColorRAMUsingIndex
         RTS 
 
 
+.segment "RAM"
 cursorXPosition       .BYTE $0A
 cursorYPosition       .BYTE $0A
 currentStepCount      .BYTE $00
@@ -1060,6 +1140,7 @@ lineModeActivated       .BYTE $00
 presetIndex            .BYTE $05
 
 
+.segment "CODE"
 customPattern0XPosArray = $C800
 customPattern1XPosArray = $C900
 customPattern2XPosArray = $CA00
@@ -1595,8 +1676,10 @@ FinalReturnFromKeyboardCheck
         RTS 
 
 
+.segment "RAM"
 initialTimeBetweenKeyStrokes   .BYTE $10
 
+.segment "CODE"
 multicrossXPosArray .BYTE $01,$01,$FF,$FF,$55                    ;
                     .BYTE $02,$02,$FE,$FE,$55                    ;   5     5  
                     .BYTE $01,$03,$03,$01,$FF,$FD,$FD,$FF,$55    ;  4       4 
@@ -1628,6 +1711,7 @@ pulsarYPosArray .BYTE $FF,$00,$01,$00,$55       ; 5432106012345
                 .BYTE $FA,$00,$06,$00,$55       ;       4      
                 .BYTE $00,$55                   ;       5      
 
+.segment "RAM"
 lastLineBufferPtr               .BYTE $FF,$FF,$FF,$FF,$FF,$FF
 dataFreeDigitOne                .BYTE $FF
 dataFreeDigitTwo                .BYTE $FF
@@ -1638,6 +1722,7 @@ customPatternValueBufferMessage .BYTE $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
                                 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; ClearLastLineOfScreen
 ;-------------------------------------------------------
@@ -1786,11 +1871,14 @@ b13CD   INC currentCountInDrawingColorBar
         BNE b13AC
 b13D8   RTS 
 
+.segment "RAM"
 currentColorBarOffset         .BYTE $FF
 currentNodeInColorBar         .BYTE $FF
 maxToDrawOnColorBar           .BYTE $FF
 currentCountInDrawingColorBar .BYTE $FF
 offsetToColorBar              .BYTE $FF
+
+.segment "CODE"
 ; Different size of nodes for the color bar, graded from a full cell to an empty cell.
 nodeTypeArray                 .BYTE $20,$65,$74,$75,$61,$F6,$EA,$E7
                               .BYTE $A0
@@ -2003,6 +2091,7 @@ ReachedLastColor
         RTS 
 
 
+.segment "RAM"
 maxValueForPresetValueArray       .BYTE $00,$40,$08,$40,$10,$10,$08
                                   .BYTE $20,$10,$08
 minValueForPresetValueArray       .BYTE $00,$00,$00,$00,$00
@@ -2012,6 +2101,7 @@ increaseOffsetForPresetValueArray .BYTE $00,$01,$08
 currentVariableMode               .BYTE $00
 currentPulseSpeedCounter         .BYTE $01
 
+.segment "CODE"
 txtVariableLabels   
         .BYTE "                "
         .BYTE "SMOOTHING DELAY",$BA
@@ -2023,9 +2113,11 @@ txtVariableLabels
         .BYTE "SEQUENCER SPEED",$BA
         .BYTE "PULSE WIDTH    ",$BA
         .BYTE "BASE LEVEL     ",$BA
+.segment "RAM"
 colorValuesPtr   
         .BYTE $00
 
+.segment "CODE"
 colorBarValues  .BYTE BLUE,RED,PURPLE,GREEN,CYAN,YELLOW,WHITE,ORANGE
                 .BYTE BROWN,LTRED,GRAY1,GRAY2,LTGREEN,LTBLUE,GRAY3
 
@@ -2080,9 +2172,11 @@ txtPreset
 txtPresetActivatedStored
         .BYTE " ACTIVATED       "
         .BYTE "DATA STORED    "
+.segment "RAM"
 shiftPressed
         .BYTE $00
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; UpdateCurrentActivePreset
 ;-------------------------------------------------------
@@ -2291,6 +2385,7 @@ b177B   LDA #$FF
 functionKeyToSequenceArray   .BYTE <burstGeneratorF1,<burstGeneratorF2
                              .BYTE <burstGeneratorF3,<burstGeneratorF4
 
+.segment "RAM"
 txtDataFree
         .BYTE "DATA",$BA," ",$B0,$B0,$B0," FREE  "
 functionKeys
@@ -2298,6 +2393,7 @@ functionKeys
 
 currentDataFree   .BYTE $FF,$60
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; CheckKeyboardWhilePromptActive
 ;-------------------------------------------------------
@@ -2512,9 +2608,12 @@ b1919   LDA #$00
         STA sequencerActive
         RTS 
 
+.segment "RAM"
 burstSmoothingDelay   .BYTE $00
 prevSymmetrySetting .BYTE $00
 sequencerActive     .BYTE $00
+
+.segment "CODE"
 ;-------------------------------------------------------
 ; ActivateSequencer
 ;-------------------------------------------------------
@@ -2644,10 +2743,12 @@ ResetSequencerToStart
         STA currentSequencePtrHi
         RTS 
 
+.segment "RAM"
 stepsRemainingInSequencerSequence   .BYTE $00
 txtSequFree
         .BYTE "SEQU",$BA," ",$B0,$B0,$B0," FREE  "
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; DisplaySequencerState
 ;-------------------------------------------------------
@@ -2672,6 +2773,8 @@ b1A18   LDA txtSequencer,Y
 txtSequencer
       .BYTE "SEQUENCER OFF   "
       .BYTE "SEQUENCER ON    "
+
+.segment "RAM"
 dataFreeForSequencer
       .BYTE $00
 prevSequencePtrLo
@@ -2681,6 +2784,7 @@ prevSequencePtrHi
 currentPulseWidth
       .BYTE $00
 
+.segment "CODE"
 recordingStorageLoPtr = $1F
 recordingStorageHiPtr = $20
 ;-------------------------------------------------------
@@ -2731,8 +2835,11 @@ b1A81   LDA txtPlayBackRecord,Y
         CMP #$03
         BNE b1AC5
 
-dynamicStorageLoPtr                       = $FB
-dynamicStorageHiPtr                       = $FC
+.segment "ZEROPAGE"
+dynamicStorageLoPtr
+dynamicStorageHiPtr
+
+.segment "CODE"
 ;-------------------------------------------------------
 ; InitializeDynamicStorage
 ;-------------------------------------------------------
@@ -2796,8 +2903,12 @@ b1B0D   LDA txtStopped,Y
 
 txtStopped
         .BYTE "STOPPED         "
+
+.segment "RAM"
 playbackOrRecordActive
         .BYTE $00
+
+.segment "CODE"
 
 ;-------------------------------------------------------
 ; RecordJoystickMovements
@@ -2915,6 +3026,7 @@ b1BC6   LDA #>dynamicStorage
         STA cursorYPosition
         RTS 
 
+.segment "RAM"
 recordingOffset
         .BYTE $00
 previousPixelXPosition
@@ -2928,6 +3040,7 @@ displaySavePromptActive
 txtDefineAllLevelPixels
         .BYTE "DEFINE ALL LEVEL ",$B2," PIXELS"
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; EditCustomPattern
 ;-------------------------------------------------------
@@ -3139,6 +3252,7 @@ txtPatternLoop
         JMP WriteLastLineBufferToScreen
         ; Returns
 
+.segment "RAM"
 txtCustomPatterns
         .BYTE "USER SHAPE "
         .BYTE $A3,$B0
@@ -3150,6 +3264,7 @@ pixelShapeArray
         .BYTE $47,$4F,$41,$54,$53,$53,$48,$45
         .BYTE $45,$50
 
+.segment "CODE"
 presetTempLoPtr                       = $FB
 presetTempHiPtr                       = $FC
 
@@ -3376,10 +3491,13 @@ b1EFB   RTS
 txtContinueLoadOrAbort
         .BYTE "{C}ONTINUE LOAD@ OR {A}BORT? "
         .BYTE "           "
+
+.segment "RAM"
 demoModeActive          .BYTE $00
 joystickInputDebounce   .BYTE $01
 joystickInputRandomizer .BYTE $10
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; PerformRandomJoystickMovement
 ;-------------------------------------------------------
@@ -3437,9 +3555,11 @@ demoMessage
         .BYTE "      PSYCHEDELIA BY JEFF MINTER         "
 
 ;* = $1FA9
+.segment "RAM"
 demoModeCountDownToChangePreset
         .BYTE $20
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; NMIInterruptHandler
 ; Not really sure of the purpose of the values being
@@ -3458,47 +3578,7 @@ NMIInterruptHandler
         RTI
 
 
-copyFromLoPtr = $FB
-copyFromHiPtr = $FC
-copyToLoPtr   = $FD
-copyToHiPtr   = $FE
-;-------------------------------------------------------
-; MovePresetDataIntoPosition
-;-------------------------------------------------------
-MovePresetDataIntoPosition   
-        LDY #$00
-        TYA 
-        STA copyFromLoPtr
-        STA copyToLoPtr
-        LDA #>presetSequenceDataSource
-        STA copyFromHiPtr
-        LDA #>presetSequenceData
-        STA copyToHiPtr
-
-        LDX #$10
-@Loop   LDA (copyFromLoPtr),Y
-        STA (copyToLoPtr),Y
-        DEY 
-        BNE @Loop
-
-        INC copyFromHiPtr
-        INC copyToHiPtr
-        DEX 
-        BNE @Loop
-
-        LDX #$09
-@Loop2  LDA originalStorageOfSomeKind,X
-        STA storageOfSomeKind,X
-        DEX 
-        BNE @Loop2
-        RTS 
-
-originalStorageOfSomeKind=*-$01   
-        .BYTE $30,$0C,$30,$0C,$C3,$C2,$CD,$38
-        .BYTE $30,$00,$00,$00,$00,$00,$00,$00
-        .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-        .BYTE $00,$00,$00,$00,$00,$00
-
+.segment "DATA"
 .include "presets.asm"
 .include "burst_generators.asm"
 .include "sequencer_data.asm"
