@@ -19,7 +19,7 @@
 ;  currentPatternElement
 ;  currentSymmetrySetting
 ;--------------------------------------------------------------------------
-presetSequenceDataSource
+presetSequenceData
 ;preset0
         ; unusedPresetByte: Unused Byte
         .BYTE $00

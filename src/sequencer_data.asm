@@ -8,7 +8,7 @@
 ; mid-sequence, for example, or to ‘see how it looks so far’.
 ; -- Psychedelia Manual
 
-startOfSequencerData = $C300
+startOfSequencerData
     ; currentSymmetrySetting: 'Current symmetry setting.'                     
     ; Possible values are 0 - 4:                                              
     ; 'NO SYMMETRY     '                                                      
@@ -1298,68 +1298,3 @@ startOfSequencerData = $C300
     .BYTE $FD,$FF      ; X/Y Co-ordinates: X/Y Position relative to cursor.   
     .BYTE $FF          ; Index to pattern in pixelXPositionLoPtrArray/pixelXPositionHiPtrArray   
     
-    .BYTE $FF,$FF,$00,$F7,$00,$FF,$00,$BF
-    .BYTE $40,$46,$00,$06,$00,$FF,$00,$06
-    .BYTE $00,$FF,$A1,$06,$00,$06,$01,$06
-    .BYTE $41,$FF,$00,$06,$01,$06,$01,$06
-    .BYTE $00,$00,$FF,$06,$00,$02,$00,$FF
-    .BYTE $41,$46,$00,$06,$81,$2A,$01,$02
-    .BYTE $00,$04,$62,$FF,$41,$06,$40,$00
-    .BYTE $6B,$04,$B1,$FB,$00,$FF,$00,$FF
-    .BYTE $00,$42,$02,$B6,$01,$00,$07,$1C
-    .BYTE $80,$FF,$25,$06,$01,$02,$07,$02
-    .BYTE $05,$00,$85,$06,$01,$02,$05,$02
-    .BYTE $01,$00,$00,$06,$03,$BD,$00,$BF
-    .BYTE $00,$BF,$C5,$BF,$01,$00,$42,$02
-    .BYTE $40,$00,$40,$06,$01,$FF,$00,$02
-    .BYTE $40,$FF,$45,$02,$00,$02,$00,$00
-    .BYTE $01,$A0,$00,$8F,$01,$00,$00,$00
-    .BYTE $00,$00,$BD,$00,$BD,$00,$BD,$40
-    .BYTE $BD,$81,$BD,$81,$FF,$00,$FD,$F1
-    .BYTE $FF,$00,$20,$81,$FF,$81,$AC,$83
-    .BYTE $EE,$00,$FF,$81,$EE,$81,$AC,$C1
-    .BYTE $BD,$C1,$24,$C1,$FF,$C1,$FF,$00
-    .BYTE $EE,$81,$FD,$C5,$AE,$C1,$EC,$E1
-    .BYTE $BF,$C3,$3F,$00,$EE,$C1,$BF,$C3
-    .BYTE $AE,$C1,$EE,$00,$FF,$00,$FF,$00
-    .BYTE $FD,$85,$DD,$03,$EE,$85,$EC,$C7
-    .BYTE $CC,$00,$E8,$81,$EC,$87,$EE,$81
-    .BYTE $EE,$8D,$62,$81,$EE,$81,$EE,$87
-    .BYTE $EA,$85,$FD,$83,$CC,$42,$EF,$00
-    .BYTE $FF,$00,$28,$02,$EE,$C1,$FD,$85
-    .BYTE $FF,$81,$FF,$85,$EE,$00,$FD,$85
-    .BYTE $BF,$00,$EE,$87,$FF,$81,$FF,$87
-    .BYTE $FE,$01,$FF,$80,$EE,$FD,$FF,$FF
-    .BYTE $FF,$FF,$00,$F7,$00,$FF,$00,$BF
-    .BYTE $40,$46,$00,$06,$00,$FF,$00,$06
-    .BYTE $00,$FF,$11,$06,$00,$06,$01,$06
-    .BYTE $41,$FF,$00,$06,$01,$06,$01,$06
-    .BYTE $00,$00,$FF,$06,$00,$02,$00,$FF
-    .BYTE $41,$46,$00,$06,$01,$AB,$41,$02
-    .BYTE $00,$04,$62,$FF,$41,$06,$40,$00
-    .BYTE $6B,$04,$91,$FF,$00,$FF,$00,$FF
-    .BYTE $00,$42,$02,$27,$01,$00,$07,$1C
-    .BYTE $00,$FF,$25,$06,$05,$02,$07,$02
-    .BYTE $05,$00,$05,$06,$01,$02,$05,$02
-    .BYTE $41,$00,$00,$06,$03,$BD,$00,$BF
-    .BYTE $00,$BD,$C5,$BF,$01,$00,$42,$02
-    .BYTE $41,$00,$40,$06,$01,$FF,$00,$02
-    .BYTE $41,$FF,$45,$02,$00,$00,$00,$00
-    .BYTE $01,$24,$00,$0D,$01,$00,$00,$00
-    .BYTE $00,$00,$BD,$00,$FD,$00,$FD,$40
-    .BYTE $BD,$81,$BD,$81,$FF,$00,$FF,$F1
-    .BYTE $FF,$00,$20,$81,$FF,$81,$AE,$C3
-    .BYTE $EE,$00,$FF,$81,$EE,$81,$AC,$C1
-    .BYTE $FD,$81,$24,$C1,$FF,$C1,$FF,$00
-    .BYTE $EE,$81,$FF,$C5,$EE,$41,$EC,$E1
-    .BYTE $FF,$C3,$37,$00,$EE,$C1,$BF,$C3
-    .BYTE $A6,$C1,$A6,$00,$FF,$00,$FF,$00
-    .BYTE $BF,$05,$FD,$03,$EA,$85,$EC,$C7
-    .BYTE $DD,$00,$60,$81,$EC,$87,$EE,$81
-    .BYTE $EE,$85,$62,$81,$EE,$81,$EE,$87
-    .BYTE $EA,$85,$FD,$83,$EC,$40,$EF,$00
-    .BYTE $FF,$00,$28,$02,$EA,$C1,$AC,$85
-    .BYTE $BF,$81,$FF,$85,$EE,$00,$FF,$C7
-    .BYTE $BF,$00,$EE,$87,$FF,$81,$FF,$87
-    .BYTE $FE,$01,$FF,$00,$EE,$FD,$FF,$FF
-    .BYTE $FF

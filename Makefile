@@ -5,14 +5,18 @@ FCEUX = fceux
 
 all: clean run
 
-psychedelia.prg:
-	ca65 src/psychedelia.asm -l bin/psychedelia.lst -o psychedelia.o
-	ld65 -o $(NES_IMAGE) -C psychedelia.cfg psychedelia.o
+psychedelia.nes:
+	ca65 -g src/psychedelia.asm -l bin/psychedelia.lst -o bin/psychedelia.o
+	ld65 -o $(NES_IMAGE) -C psychedelia.cfg -m bin/psychedelia.map.txt bin/psychedelia.o -Ln bin/psychedelia.labels.txt --dbgfile bin/psychedelia.nes.dbg
+	python3 fceux_symbols.py
 
-run: psychedelia.prg
-	$(FCEUX) -verbose $(NES_IMAGE)
+run: psychedelia.nes
+	$(FCEUX) $(NES_IMAGE)
 
 clean:
 	-rm $(NES_IMAGE)
 	-rm bin/*.txt
+	-rm bin/*.o
+	-rm bin/*.nl
 	-rm bin/*.lst
+	-rm bin/*.dbg

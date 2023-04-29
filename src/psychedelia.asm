@@ -20,49 +20,48 @@
 .feature loose_char_term
 
 .segment "ZEROPAGE"
-pixelXPosition                
-pixelYPosition                
-currentIndexToColorValues     
-currentLineInColorRamLoPtr2   
-currentLineInColorRamHiPtr2   
-previousPixelXPositionZP      
-previousPixelYPositionZP      
-currentLineInColorRamLoPtr    
-currentLineInColorRamHiPtr    
-currentColorToPaint           
-xPosLoPtr                     
-xPosHiPtr                     
-currentPatternElement         
-yPosLoPtr                     
-yPosHiPtr                     
-timerBetweenKeyStrokes        
-shouldDrawCursor              
-currentSymmetrySettingForStep 
-currentSymmetrySetting        
-offsetForYPos                 
-skipPixel                     
-colorBarColorRamLoPtr         
-colorBarColorRamHiPtr         
-currentColorSet               
-presetSequenceDataLoPtr       
-presetSequenceDataHiPtr       
-currentSequencePtrLo          
-currentSequencePtrHi          
-lastJoystickInput             
-customPatternLoPtr            
-customPatternHiPtr            
-minIndexToColorValues         
-initialIndexToColorValues     
-currentIndexToPresetValue     
-lastKeyPressed                
-presetLoPtr                   
-presetHiPtr                   
-colorRamLoPtr                
-colorRamHiPtr                
+pixelXPosition                .res 1
+pixelYPosition                .res 1
+currentIndexToColorValues     .res 1
+currentLineInColorRamLoPtr2   .res 1
+currentLineInColorRamHiPtr2   .res 1
+previousPixelXPositionZP      .res 1
+previousPixelYPositionZP      .res 1
+currentLineInColorRamLoPtr    .res 1
+currentLineInColorRamHiPtr    .res 1
+currentColorToPaint           .res 1
+xPosLoPtr                     .res 1
+xPosHiPtr                     .res 1
+currentPatternElement         .res 1
+yPosLoPtr                     .res 1
+yPosHiPtr                     .res 1
+timerBetweenKeyStrokes        .res 1
+shouldDrawCursor              .res 1
+currentSymmetrySettingForStep .res 1
+currentSymmetrySetting        .res 1
+offsetForYPos                 .res 1
+skipPixel                     .res 1
+colorBarColorRamLoPtr         .res 1
+colorBarColorRamHiPtr         .res 1
+currentColorSet               .res 1
+presetSequenceDataLoPtr       .res 1
+presetSequenceDataHiPtr       .res 1
+currentSequencePtrLo          .res 1
+currentSequencePtrHi          .res 1
+lastJoystickInput             .res 1
+customPatternLoPtr            .res 1
+customPatternHiPtr            .res 1
+minIndexToColorValues         .res 1
+initialIndexToColorValues     .res 1
+currentIndexToPresetValue     .res 1
+lastKeyPressed                .res 1
+presetLoPtr                   .res 1
+presetHiPtr                   .res 1
+colorRamLoPtr                .res 1
+colorRamHiPtr                .res 1
 
 shiftKey                      = $028D
 storageOfSomeKind             = $7FFF
-presetSequenceData            = $C000
 
 
 .include "constants.asm"
@@ -85,7 +84,7 @@ INES_SRAM   = 0 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 ;
 
 .SEGMENT "TILES"
-;.INCBIN "background.chr"
+.INCBIN "background.chr"
 
 ;
 ; VECTORS PLACED AT TOP 6 BYTES OF MEMORY AREA
@@ -94,7 +93,7 @@ INES_SRAM   = 0 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 .SEGMENT "VECTORS"
 .WORD MainNMIInterruptHandler ; NMI
 .WORD InitializeNES        ; Reset
-.WORD MainInterruptHandler ; IRQ interrupt handler
+.WORD IRQInterruptHandler ; IRQ interrupt handler
 
 ; nmi routine
 ;
@@ -115,6 +114,17 @@ PALETTE    .res 32  ; PALETTE BUFFER FOR PPU UPDATE
 
 .segment "OAM"
 OAM .res 256        ; SPRITE OAM DATA TO BE UPLOADED BY DMA
+
+.segment "RODATA"
+example_palette
+.byte $0F,$15,$26,$37 ; bg0 purple/pink
+.byte $0F,$09,$19,$29 ; bg1 green
+.byte $0F,$01,$11,$21 ; bg2 blue
+.byte $0F,$00,$10,$30 ; bg3 greyscale
+.byte $0F,$18,$28,$38 ; sp0 yellow
+.byte $0F,$14,$24,$34 ; sp1 purple
+.byte $0F,$1B,$2B,$3B ; sp2 teal
+.byte $0F,$12,$22,$32 ; sp3 marine
 
 .segment "CODE"
 ;-------------------------------------------------------
@@ -169,6 +179,17 @@ InitializeNES
 	; ENABLE THE NMI FOR GRAPHICAL UPDATES, AND JUMP TO OUR MAIN PROGRAM
 	LDA #%10001000
 	STA $2000
+
+
+	; setup 
+	LDX #0
+	:
+		LDA example_palette, X
+		STA PALETTE, X
+		INX
+		CPX #32
+		BCC :-
+
 	JMP InitializeProgram
 
 .segment "CODE"
@@ -182,6 +203,7 @@ MainNMIInterruptHandler
         PHA
         TYA
         PHA
+
         ; PREVENT NMI RE-ENTRY
         LDA NMI_LOCK
         BEQ :+
@@ -279,10 +301,23 @@ MainNMIInterruptHandler
 
 ;-------------------------------------------------------
 ; ppu_update:
+; ppu_update: waits until next NMI, turns rendering on (if not already),
+; uploads OAM, palette, and nametable update to PPU
 ;-------------------------------------------------------
-; ppu_update: waits until next NMI, turns rendering on (if not already), uploads OAM, palette, and nametable update to PPU
 PPU_Update
 	LDA #1
+	STA NMI_READY
+	:
+		LDA NMI_READY
+		BNE :-
+	RTS
+
+;-------------------------------------------------------
+; ppu_off: waits until next NMI, turns rendering off (now safe to write PPU
+; directly via $2007)
+;-------------------------------------------------------
+PPU_Off
+	LDA #2
 	STA NMI_READY
 	:
 		LDA NMI_READY
@@ -295,12 +330,12 @@ PPU_Update
 InitializeProgram
         ; Set border and background to black
         LDA #$00
-        STA $D020    ;Border Color
-        STA $D021    ;Background Color 0
+;        STA $D020    ;Border Color
+;        STA $D021    ;Background Color 0
 
         STA shouldDrawCursor
 
-        ; Create a Hi/Lo pointer to $D800
+        ; Create a Hi/Lo pointer to $2000
         LDA #>COLOR_RAM
         STA colorRamHiPtr
         LDA #<COLOR_RAM
@@ -312,22 +347,20 @@ InitializeProgram
         ; line 40 bytes long and there are nineteen lines.
         ; The last line is reserved for configuration messages.
         LDX #$00
-b0827   LDA colorRamHiPtr
+@Loop   
+        LDA colorRamHiPtr
         STA colorRAMLineTableHiPtrArray,X
         LDA colorRamLoPtr
         STA colorRAMLineTableLoPtrArray,X
         CLC 
-        ADC #$28
+        ADC #$20
         STA colorRamLoPtr
         LDA colorRamHiPtr
         ADC #$00
         STA colorRamHiPtr
         INX 
-        CPX #$19
-        BNE b0827
-
-        LDA #$80
-        STA $0291 ; Disable character set case change
+        CPX #$1F
+        BNE @Loop
 
         ; JSR InitializeDynamicStorage
         JMP LaunchPsychedelia
@@ -344,24 +377,23 @@ colorRAMLineTableHiPtrArray
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00
 
+.segment "ZEROPAGE"
+currentPixel .res 1
+
 .segment "CODE"
 ;-------------------------------------------------------
 ; InitializeScreenWithInitCharacter
 ;-------------------------------------------------------
 InitializeScreenWithInitCharacter 
+        JSR PPU_Off
         LDX #$00 
 
-currentPixel = *+$01
 InitScreenLoop   
-        LDA #$CF
-        STA SCREEN_RAM + $0000,X
-        STA SCREEN_RAM + $0100,X
-        STA SCREEN_RAM + $0200,X
-        STA SCREEN_RAM + $02C0,X
-        LDA #$00
+        LDA currentPixel
         STA COLOR_RAM + $0000,X
         STA COLOR_RAM + $0100,X
         STA COLOR_RAM + $0200,X
+        STA COLOR_RAM + $0300,X
         STA COLOR_RAM + $02C0,X
         DEX 
         BNE InitScreenLoop
@@ -432,11 +464,30 @@ FoundMatchingIndex
 
         ; Actually paint the pixel to color ram.
 ActuallyPaintPixel   
-        LDX currentIndexToColorValues
-        LDA presetColorValuesArray,X
-        STA (currentLineInColorRamLoPtr2),Y
+        ;LDX currentIndexToColorValues
+        ;LDA presetColorValuesArray,X
+        ;STA (currentLineInColorRamLoPtr2),Y
+        JSR AddPixelToNMTUpdate
         RTS 
 
+;-------------------------------------------------------
+; AddPixelToNMTUpdate
+;-------------------------------------------------------
+AddPixelToNMTUpdate
+        LDX NMT_UPDATE_LEN
+        LDA currentLineInColorRamLoPtr2 + pixelXPosition
+        STA NMT_UPDATE, X
+        INX
+        LDA currentLineInColorRamHiPtr2
+        STA NMT_UPDATE, X
+        INX
+        LDY currentIndexToColorValues
+        LDA presetColorValuesArray,Y
+        STA NMT_UPDATE, X
+        JSR PPU_Update
+        RTS
+
+        
 ;-------------------------------------------------------
 ; LoopThroughPixelsAndPaint
 ;-------------------------------------------------------
@@ -719,7 +770,8 @@ symmetrySettingForStepCount
 ReinitializeSequences
         LDX #$00
         TXA 
-@Loop   STA pixelXPositionArray,X
+@Loop   
+        STA pixelXPositionArray,X
         STA pixelYPositionArray,X
         LDA #$FF
         STA baseLevelArray,X
@@ -746,15 +798,16 @@ ReinitializeSequences
 LaunchPsychedelia    
         JSR SetUpInterruptHandlers
 
-        LDX #$10
-@Loop   TXA 
-        STA SetUpInterruptHandlers,X
-        DEX 
-        BNE @Loop
+;        LDX #$10
+;@Loop   TXA 
+;        STA SetUpInterruptHandlers,X
+;        DEX 
+;        BNE @Loop
 
         JSR ReinitializeScreen
         JSR ReinitializeSequences
         JSR ClearLastLineOfScreen
+        ; Falls through
 
 ;-------------------------------------------------------
 ; MainPaintLoop
@@ -762,25 +815,25 @@ LaunchPsychedelia
 MainPaintLoop    
         INC currentBufferLength
 
-        LDA lastKeyPressed
-        CMP #$02 ; Left/Right cursor key
-        BNE HandleAnyCurrentModes
+;        LDA lastKeyPressed
+;        CMP #$02 ; Left/Right cursor key
+;        BNE HandleAnyCurrentModes
 
         ; Left/Right cursor key pauses the paint animation.
         ; This section just loops around if the left/right keys
         ; are pressed and keeps looping until they're pressed again.
-@Loop   LDA lastKeyPressed
-        CMP #$40 ;  No key pressed
-        BNE @Loop
-
-@Loop2  LDA lastKeyPressed
-        CMP #$02 ; Left/Right cursor key
-        BNE @Loop2
-
-        ; Keep looping until key pressed again.
-@Loop3  LDA lastKeyPressed
-        CMP #$40 ;No key pressed
-        BNE @Loop3
+;@Loop   LDA lastKeyPressed
+;        CMP #$40 ;  No key pressed
+;        BNE @Loop
+;
+;@Loop2  LDA lastKeyPressed
+;        CMP #$02 ; Left/Right cursor key
+;        BNE @Loop2
+;
+;        ; Keep looping until key pressed again.
+;@Loop3  LDA lastKeyPressed
+;        CMP #$40 ;No key pressed
+;        BNE @Loop3
 
         ; Check if we can just do a normal paint or if
         ; we have to handle a customer preset mode or
@@ -870,31 +923,38 @@ PaintLineModeAndLoop
 ; SetUpInterruptHandlers
 ;-------------------------------------------------------
 SetUpInterruptHandlers
-        SEI
-        LDA #<MainInterruptHandler
-        STA $0314    ;IRQ
-        LDA #>MainInterruptHandler
-        STA $0315    ;IRQ
+;        SEI
+;        LDA #<IRQInterruptHandler
+;        STA $0314    ;IRQ
+;        LDA #>IRQInterruptHandler
+;        STA $0315    ;IRQ
 
         LDA #$0A
         STA cursorXPosition
         STA cursorYPosition
 
-        LDA #$01
-        STA $D015    ;Sprite display Enable
-        STA $D027    ;Sprite 0 Color
-        LDA #<NMIInterruptHandler
-        STA $0318    ;NMI
-        LDA #>NMIInterruptHandler
-        STA $0319    ;NMI
-        CLI 
+;        LDA #$01
+;        STA $D015    ;Sprite display Enable
+;        STA $D027    ;Sprite 0 Color
+;        LDA #<NMIInterruptHandler
+;        STA $0318    ;NMI
+;        LDA #>NMIInterruptHandler
+;        STA $0319    ;NMI
+;        CLI 
         RTS 
 
 countStepsBeforeCheckingJoystickInput   .BYTE $02,$00
 ;-------------------------------------------------------
-; MainInterruptHandler
+; IRQInterruptHandler
 ;-------------------------------------------------------
-MainInterruptHandler
+IRQInterruptHandler
+        ; SAVE REGISTERS
+        PHA
+        TXA
+        PHA
+        TYA
+        PHA
+
         ; The sequencer is played by the interrupt handler.
         ; Check if it's active.
         LDA stepsRemainingInSequencerSequence
@@ -926,11 +986,11 @@ b0D03   LDA #$00
 
         JSR GetJoystickInput
         LDA lastJoystickInput
-        AND #$03
-        CMP #$03
+        AND #$30
+        CMP #$30
         BEQ b0D40 ; Neither up nor down have been pushed.
 
-        CMP #$02
+        CMP #PAD_D
         BEQ b0D25 ; Player has pressed down.
         
         ; Player has pressed up. Incremeent up two lines
@@ -955,11 +1015,11 @@ b0D37   CMP #$18
 
         ; Player has pressed left or right?
 b0D40   LDA lastJoystickInput
-        AND #$0C
-        CMP #$0C
+        AND #$C0
+        CMP #$C0
         BEQ b0D6D ; Player has pressed neither left nor right.
 
-        CMP #$08
+        CMP #PAD_R
         BEQ b0D52 ; Player has pressed left.
 
         ; Player has pressed right.
@@ -975,18 +1035,18 @@ b0D52   DEC cursorXPosition
 
         ; Cursor has wrapped around, move it to the extreme
         ; right of the screen.
-        LDA #$27
+        LDA #CURSOR_EXTREME_RIGHT
         STA cursorXPosition
         JMP b0D6D
 
         ; Handle any wrap around from right to left.
-b0D64   CMP #$28
+b0D64   CMP #CURSOR_EXTREME_RIGHT + $01
         BNE b0D6D
         LDA #$00
         STA cursorXPosition
 
 b0D6D   LDA lastJoystickInput
-        AND #$10
+        AND #PAD_A
         BEQ PlayerHasntPressedFire
 
         ; Player has pressed fire.
@@ -1080,12 +1140,16 @@ DrawCursorAndReturnFromInterrupt
         JSR UpdateLineinColorRAMUsingIndex
         ; Falls through
 
-;-------------------------------------------------------
-; JumpToCheckKeyboardInput
-;-------------------------------------------------------
 JumpToCheckKeyboardInput    
         JSR CheckKeyboardInput
-        JMP RETURN_INTERRUPT
+
+        ; RESTORE REGISTERS AND RETURN
+        PLA
+        TAY
+        PLA
+        TAX
+        PLA
+        RTI
 
 ;-------------------------------------------------------
 ; LoadXAndYPositionUsingIndex
@@ -1107,10 +1171,26 @@ UpdateLineinColorRAMUsingIndex
         LDA displaySavePromptActive
         BNE ReturnFromColorRamPtr
         JSR LoadXAndYPositionUsingIndex
-        LDA currentColorToPaint
-        STA (currentLineInColorRamLoPtr),Y
+        ;LDA currentColorToPaint
+        ;STA (currentLineInColorRamLoPtr),Y
+        JSR AddCursorPixelToNMTUpdate
         RTS 
 
+;-------------------------------------------------------
+; AddPixelToNMTUpdate
+;-------------------------------------------------------
+AddCursorPixelToNMTUpdate
+        LDX NMT_UPDATE_LEN
+        LDA currentLineInColorRamLoPtr + pixelXPosition
+        STA NMT_UPDATE, X
+        INX
+        LDA currentLineInColorRamHiPtr
+        STA NMT_UPDATE, X
+        INX
+        LDA currentColorToPaint
+        STA NMT_UPDATE, X
+        JSR PPU_Update
+        RTS
 
 .segment "RAM"
 cursorXPosition       .BYTE $0A
@@ -1141,22 +1221,6 @@ presetIndex            .BYTE $05
 
 
 .segment "CODE"
-customPattern0XPosArray = $C800
-customPattern1XPosArray = $C900
-customPattern2XPosArray = $CA00
-customPattern3XPosArray = $CB00
-customPattern4XPosArray = $CC00
-customPattern5XPosArray = $CD00
-customPattern6XPosArray = $CE00
-customPattern7XPosArray = $CF00
-customPattern0YPosArray = $C880
-customPattern1YPosArray = $C980
-customPattern2YPosArray = $CA80
-customPattern3YPosArray = $CB80
-customPattern4YPosArray = $CC80
-customPattern5YPosArray = $CD80
-customPattern6YPosArray = $CE80
-customPattern7YPosArray = $CF80
 
 ; A pair of arrays together consituting a list of pointers
 ; to positions in memory containing X position data.
@@ -1289,6 +1353,9 @@ diffusedYPosArray .BYTE $01,$FF,$55                  ;   3  0    3
 ; CheckKeyboardInput
 ;-------------------------------------------------------
 CheckKeyboardInput   
+        ; FIXME: Let's return early for now.
+        RTS
+
         LDA currentVariableMode
         BEQ CheckForGeneralKeystrokes
         JMP CheckKeyboardInputForActiveVariable
@@ -1728,7 +1795,7 @@ customPatternValueBufferMessage .BYTE $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 ;-------------------------------------------------------
 ClearLastLineOfScreen   
         
-        LDX #$28
+        LDX #$20
 b121B   LDA #$20
         STA lastLineBufferPtr - $01,X
         STA SCREEN_RAM + $03BF,X
@@ -1740,12 +1807,10 @@ b121B   LDA #$20
 ; WriteLastLineBufferToScreen
 ;-------------------------------------------------------
 WriteLastLineBufferToScreen    
-        LDX #$28
+        LDX #$20
 b1229   LDA lastLineBufferPtr - $01,X
         AND #$3F
         STA SCREEN_RAM + $03BF,X
-        LDA #$0C
-        STA COLOR_RAM + $03BF,X
         DEX 
         BNE b1229
         RTS 
@@ -2963,10 +3028,53 @@ b1B70   INY
         BEQ b1B37
         RTS 
 
+PAD_A      = $01
+PAD_B      = $02
+PAD_SELECT = $04
+PAD_START  = $08
+PAD_U      = $10
+PAD_D      = $20
+PAD_L      = $40
+PAD_R      = $80
+
+.segment "CODE"
+;-------------------------------------------------------
+; GamepadPoll
+; gamepad_poll: this reads the gamepad state into the variable labelled
+; "gamepad" This only reads the first gamepad, and also if DPCM samples are
+; played they can conflict with gamepad reading, which may give incorrect
+; results.
+;-------------------------------------------------------
+GamepadPoll
+        ; strobe the gamepad to latch current button state
+        LDA #1
+        STA $4016
+        LDA #0
+        STA $4016
+        ; READ 8 BYTES FROM THE INTERFACE AT $4016
+        LDX #8
+        :
+          PHA
+          LDA $4016
+          ; COMBINE LOW TWO BITS AND STORE IN CARRY BIT
+          AND #%00000011
+          CMP #%00000001
+          PLA
+          ; ROTATE CARRY INTO GAMEPAD VARIABLE
+          ROR
+          DEX
+          BNE :-
+        STA lastJoystickInput
+        RTS
+
 ;-------------------------------------------------------
 ; GetJoystickInput
 ;-------------------------------------------------------
 GetJoystickInput   
+        ; Just populate lastJoystickInput for now.
+        JSR GamepadPoll
+        RTS
+
         LDA playbackOrRecordActive
         BEQ b1B8C
         CMP #$03
@@ -3493,7 +3601,7 @@ txtContinueLoadOrAbort
         .BYTE "           "
 
 .segment "RAM"
-demoModeActive          .BYTE $00
+demoModeActive          .BYTE $01
 joystickInputDebounce   .BYTE $01
 joystickInputRandomizer .BYTE $10
 
@@ -3578,7 +3686,6 @@ NMIInterruptHandler
         RTI
 
 
-.segment "DATA"
 .include "presets.asm"
 .include "burst_generators.asm"
 .include "sequencer_data.asm"

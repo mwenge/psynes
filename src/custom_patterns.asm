@@ -40,7 +40,7 @@
 ;  30  2  14 
 ;    54245   
 ;
-; customPattern0XPosArray
+customPattern0XPosArray
         .BYTE $00,$00,$00,$FF,$FE,$FD,$01,$02,$55
         .BYTE $00,$03,$55
         .BYTE $00,$00,$00,$00,$00,$55
@@ -61,7 +61,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern0YPosArray
+customPattern0YPosArray
         .BYTE $00,$FF,$FE,$01,$02,$03,$01,$02,$55
         .BYTE $00,$03,$55
         .BYTE $00,$01,$02,$03,$04,$55
@@ -93,7 +93,7 @@
 ;              
 ;    3  5  3   
 ;-----------------
-; customPattern1XPosArray
+customPattern1XPosArray
         .BYTE $00,$00,$FF,$01,$55
         .BYTE $00,$FE,$02,$55
         .BYTE $00,$00,$FA,$06,$03,$FD,$55
@@ -115,7 +115,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern1YPosArray
+customPattern1YPosArray
         .BYTE $00,$FF,$01,$01,$55
         .BYTE $00,$01,$01,$55
         .BYTE $00,$FC,$FF,$FF,$05,$05,$55
@@ -150,7 +150,7 @@
 ;        6       
 ;-----------------
 
-; customPattern2XPosArray
+customPattern2XPosArray
         .BYTE $00,$55
         .BYTE $00,$FD,$03,$55
         .BYTE $00,$F9,$07,$55
@@ -176,7 +176,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern2YPosArray
+customPattern2YPosArray
         .BYTE $00,$55
         .BYTE $00,$00,$00,$55
         .BYTE $00,$00,$00,$55
@@ -209,7 +209,7 @@
 ;    3 2
 ;    3 3
 ;-----------------
-; customPattern3XPosArray
+customPattern3XPosArray
         .BYTE $00,$01,$01,$02,$55
         .BYTE $00,$00,$01,$02,$02,$55
         .BYTE $00,$00,$00,$02,$55
@@ -232,7 +232,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern3YPosArray
+customPattern3YPosArray
         .BYTE $00,$FF,$00,$00,$55
         .BYTE $00,$01,$01,$01,$02,$55
         .BYTE $00,$02,$03,$03,$55
@@ -280,7 +280,7 @@
 ;                                         
 ;                                         
 ;                    1                    
-; customPattern4XPosArray
+customPattern4XPosArray
         .BYTE $00,$00,$00,$ED,$14,$55
         .BYTE $00,$F2,$0F,$55
         .BYTE $00,$00,$55
@@ -305,7 +305,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern4YPosArray
+customPattern4YPosArray
         .BYTE $00,$0B,$F4,$00,$00,$55
         .BYTE $00,$00,$00,$55
         .BYTE $00,$F9,$55
@@ -342,7 +342,7 @@
 ; 3  2      
 ;  33       
 ;-----------------
-; customPattern5XPosArray
+customPattern5XPosArray
         .BYTE $00,$00,$01,$01,$55
         .BYTE $00,$FF,$FF,$FE,$55
         .BYTE $00,$FD,$FC,$FB,$55
@@ -365,7 +365,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern5YPosArray
+customPattern5YPosArray
         .BYTE $00,$FF,$FE,$FD,$55
         .BYTE $00,$01,$02,$03,$55
         .BYTE $00,$04,$04,$03,$55
@@ -403,7 +403,7 @@
 ;        44         
 ;        44         
 ;-----------------
-; customPattern6XPosArray
+customPattern6XPosArray
         .BYTE $00,$01,$02,$55
         .BYTE $00,$F6,$F6,$55
         .BYTE $00,$FB,$FA,$FB,$FC,$55
@@ -426,7 +426,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern6YPosArray
+customPattern6YPosArray
         .BYTE $00,$FF,$FE,$55
         .BYTE $00,$FC,$FD,$55
         .BYTE $00,$FA,$FB,$FC,$FB,$55
@@ -449,7 +449,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern7XPosArray
+customPattern7XPosArray
         .BYTE $00,$55
         .BYTE $00,$55
         .BYTE $00,$55
@@ -474,7 +474,7 @@
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
         .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 
-; customPattern7YPosArray
+customPattern7YPosArray
         .BYTE $00,$55
         .BYTE $00,$55
         .BYTE $00,$55

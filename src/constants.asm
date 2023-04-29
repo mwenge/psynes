@@ -87,8 +87,11 @@ JOYSTICK_LEFT        = $04
 JOYSTICK_DOWN        = $02
 JOYSTICK_UP          = $01
 
-SCREEN_RAM           = $0400
-COLOR_RAM            = $D800
+CURSOR_EXTREME_RIGHT = $20
+CURSOR_EXTREME_BOTTOM = $1E
+
+SCREEN_RAM           = $2000
+COLOR_RAM            = $2000
 CURRENT_CHAR_COLOR   = $0286
 ROM_IOINIT           = $FF84
 ROM_READST           = $FFB7
