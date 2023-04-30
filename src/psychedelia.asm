@@ -385,6 +385,7 @@ currentPixel .res 1
 ; InitializeScreenWithInitCharacter
 ;-------------------------------------------------------
 InitializeScreenWithInitCharacter 
+        RTS
         JSR PPU_Off
         LDX #$00 
 
@@ -572,6 +573,7 @@ b0973   LDA previousPixelXPositionZP
 ; draws the square of 0s at the centre of the star.
 ;
 
+.segment "RODATA"
 starOneXPosArray  .BYTE $00,$01,$01,$01,$00,$FF,$FF,$FF,$55       ;        5       
                   .BYTE $00,$02,$00,$FE,$55                       ;                
                   .BYTE $00,$03,$00,$FD,$55                       ;       4 4      
@@ -909,6 +911,7 @@ ShouldDoAPaint
 
         DEC baseLevelArray,X
 GoBackToStartOfLoop   
+        JSR PPU_Update
         JMP MainPaintLoop
 
 .segment "RAM"
@@ -1220,7 +1223,7 @@ lineModeActivated       .BYTE $00
 presetIndex            .BYTE $05
 
 
-.segment "CODE"
+.segment "RODATA"
 
 ; A pair of arrays together consituting a list of pointers
 ; to positions in memory containing X position data.
@@ -1349,6 +1352,7 @@ diffusedYPosArray .BYTE $01,$FF,$55                  ;   3  0    3
                   .BYTE $00,$55
 
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; CheckKeyboardInput
 ;-------------------------------------------------------
@@ -1719,14 +1723,14 @@ MaybeUpArrowPressed
         LDA pixelShapeArray,Y
 
         ; Rewrite the screen using the new pixel.
-        LDX #$00
-@Loop   STA SCREEN_RAM + $0000,X
-        STA SCREEN_RAM + $0100,X
-        STA SCREEN_RAM + $0200,X
-        STA SCREEN_RAM + $02C0,X
-        DEX 
-        BNE @Loop
-        STA currentPixel
+;        LDX #$00
+;@Loop   STA SCREEN_RAM + $0000,X
+;        STA SCREEN_RAM + $0100,X
+;        STA SCREEN_RAM + $0200,X
+;        STA SCREEN_RAM + $02C0,X
+;        DEX 
+;        BNE @Loop
+;        STA currentPixel
         RTS 
 
 MaybeAPressed   
@@ -1746,7 +1750,7 @@ FinalReturnFromKeyboardCheck
 .segment "RAM"
 initialTimeBetweenKeyStrokes   .BYTE $10
 
-.segment "CODE"
+.segment "RODATA"
 multicrossXPosArray .BYTE $01,$01,$FF,$FF,$55                    ;
                     .BYTE $02,$02,$FE,$FE,$55                    ;   5     5  
                     .BYTE $01,$03,$03,$01,$FF,$FD,$FD,$FF,$55    ;  4       4 
@@ -1816,6 +1820,7 @@ b1229   LDA lastLineBufferPtr - $01,X
         RTS 
 
 
+.segment "RODATA"
 txtPresetPatternNames
         .BYTE "STAR ONE        "
         .BYTE "THE TWIST       "
@@ -1832,6 +1837,7 @@ txtSymmetrySettingDescriptions
         .BYTE "X-AXIS SYMMETRY "
         .BYTE "QUAD SYMMETRY   "
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; PaintLineMode
 ;-------------------------------------------------------
@@ -1943,11 +1949,12 @@ maxToDrawOnColorBar           .BYTE $FF
 currentCountInDrawingColorBar .BYTE $FF
 offsetToColorBar              .BYTE $FF
 
-.segment "CODE"
+.segment "RODATA"
 ; Different size of nodes for the color bar, graded from a full cell to an empty cell.
 nodeTypeArray                 .BYTE $20,$65,$74,$75,$61,$F6,$EA,$E7
                               .BYTE $A0
 
+.segment "CODE"
 ResetSelectedVariableAndReturn
         LDA #$00
         STA currentVariableMode
@@ -2166,7 +2173,7 @@ increaseOffsetForPresetValueArray .BYTE $00,$01,$08
 currentVariableMode               .BYTE $00
 currentPulseSpeedCounter         .BYTE $01
 
-.segment "CODE"
+.segment "RODATA"
 txtVariableLabels   
         .BYTE "                "
         .BYTE "SMOOTHING DELAY",$BA
@@ -2178,11 +2185,12 @@ txtVariableLabels
         .BYTE "SEQUENCER SPEED",$BA
         .BYTE "PULSE WIDTH    ",$BA
         .BYTE "BASE LEVEL     ",$BA
+
 .segment "RAM"
 colorValuesPtr   
         .BYTE $00
 
-.segment "CODE"
+.segment "RODATA"
 colorBarValues  .BYTE BLUE,RED,PURPLE,GREEN,CYAN,YELLOW,WHITE,ORANGE
                 .BYTE BROWN,LTRED,GRAY1,GRAY2,LTGREEN,LTBLUE,GRAY3
 
@@ -2192,6 +2200,7 @@ txtTrackingOnOff
         .BYTE "TRACKING",$BA," ON    "
 
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; DisplayPresetMessage
 ;-------------------------------------------------------
@@ -2232,11 +2241,13 @@ WriteLastLineBufferAndReturn
         JSR WriteLastLineBufferToScreen
         RTS 
 
+.segment "RODATA"
 txtPreset
         .BYTE "PRESET ",$B0,$B0,"      ",$BA
 txtPresetActivatedStored
         .BYTE " ACTIVATED       "
         .BYTE "DATA STORED    "
+
 .segment "RAM"
 shiftPressed
         .BYTE $00
@@ -2376,7 +2387,10 @@ ResetCurrentActiveMode
         STA currentStepCount
         RTS 
 
+.segment "RAM"
 currentModeActive  .BYTE $00
+
+.segment "CODE"
 ;-------------------------------------------------------
 ; ReinitializeScreen
 ;-------------------------------------------------------
@@ -2397,9 +2411,11 @@ b172A   STA baseLevelArray,X
         JMP InitializeScreenWithInitCharacter
         ; Returns
 
+.segment "RAM"
 enterWasPressed  .BYTE $00
 functionKeyIndex .BYTE $00
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; UpdateBurstGenerator
 ;-------------------------------------------------------
@@ -2447,6 +2463,7 @@ b177B   LDA #$FF
         STA sequencerActive
         JMP InitializeSequencer
 
+.segment "RODATA"
 functionKeyToSequenceArray   .BYTE <burstGeneratorF1,<burstGeneratorF2
                              .BYTE <burstGeneratorF3,<burstGeneratorF4
 
@@ -2587,7 +2604,10 @@ ReturnPressed
         STA sequencerActive
         RTS 
 
+.segment "RAM"
 customPromptsActive   .BYTE $00
+
+.segment "CODE"
 ;-------------------------------------------------------
 ; UpdateDataFreeDisplay
 ;-------------------------------------------------------
@@ -2835,6 +2855,7 @@ b1A18   LDA txtSequencer,Y
         BNE b1A18
         JMP WriteLastLineBufferToScreen
 
+.segment "RODATA"
 txtSequencer
       .BYTE "SEQUENCER OFF   "
       .BYTE "SEQUENCER ON    "
@@ -2901,8 +2922,8 @@ b1A81   LDA txtPlayBackRecord,Y
         BNE b1AC5
 
 .segment "ZEROPAGE"
-dynamicStorageLoPtr
-dynamicStorageHiPtr
+dynamicStorageLoPtr .res 1
+dynamicStorageHiPtr .res 1
 
 .segment "CODE"
 ;-------------------------------------------------------
@@ -2945,9 +2966,11 @@ b1AC5   LDA #$00
         STA displaySavePromptActive
         RTS 
 
+.segment "RODATA"
 txtPlayBackRecord
         .BYTE "PLAYING BACK",$AE,$AE,$AE,$AE,"RECORDING",$AE,$AE,$AE,$AE,$AE,$AE,$AE
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; DisplayStoppedRecording
 ;-------------------------------------------------------
@@ -2966,6 +2989,7 @@ b1B0D   LDA txtStopped,Y
         JMP WriteLastLineBufferToScreen
         ; Returns
 
+.segment "RODATA"
 txtStopped
         .BYTE "STOPPED         "
 
@@ -3366,6 +3390,8 @@ txtCustomPatterns
         .BYTE $A3,$B0
 pixelShapeIndex
         .BYTE $00
+
+.segment "RODATA"
 pixelShapeArray
         .BYTE $CF,$51,$53,$5A,$5B,$5F,$57,$7F
         .BYTE $56,$61,$4F,$66,$6C,$EC,$A0,$2A
@@ -3493,8 +3519,10 @@ b1E30   LDA txtSavePrompt,X
         JSR WriteLastLineBufferToScreen
 b1E43   RTS 
 
+.segment "RODATA"
 txtSavePrompt   .BYTE " SAVE (P)ARAMETERS, (M)OTION, (A)BORT?  "
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; CheckKeyboardInputWhileSavePromptActive
 ;-------------------------------------------------------
@@ -3596,6 +3624,7 @@ b1EE5   CMP #$14 ; 'C'
 
 b1EFB   RTS 
 
+.segment "RODATA"
 txtContinueLoadOrAbort
         .BYTE "{C}ONTINUE LOAD@ OR {A}BORT? "
         .BYTE "           "
@@ -3659,6 +3688,7 @@ b1F73   LDA demoMessage,X
         BNE b1F73
         JMP WriteLastLineBufferToScreen
 
+.segment "RODATA"
 demoMessage
         .BYTE "      PSYCHEDELIA BY JEFF MINTER         "
 
