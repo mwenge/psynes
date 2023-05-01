@@ -112,8 +112,8 @@ TEMP           .res 1 ; TEMPORARY VARIABLE
 NMT_UPDATE .res 256 ; NAMETABLE UPDATE ENTRY BUFFER FOR PPU UPDATE
 PALETTE    .res 32  ; PALETTE BUFFER FOR PPU UPDATE
 
-.segment "OAM"
-OAM .res 256        ; SPRITE OAM DATA TO BE UPLOADED BY DMA
+;.segment "OAM"
+;OAM .res 256        ; SPRITE OAM DATA TO BE UPLOADED BY DMA
 
 .segment "RODATA"
 example_palette
@@ -136,9 +136,9 @@ InitializeNES
 	STA $2000 ; DISABLE NMI
 	STA $2001 ; DISABLE RENDERING
 	STA $4015 ; DISABLE APU SOUND
-	STA $4010 ; DISABLE DMC IRQ
-	LDA #$40
-	STA $4017 ; DISABLE APU IRQ
+	;STA $4010 ; DISABLE DMC IRQ
+	;LDA #$40
+	;STA $4017 ; DISABLE APU IRQ
 	CLD       ; DISABLE DECIMAL MODE
 	LDX #$FF
 	TXS       ; INITIALIZE STACK
@@ -161,16 +161,16 @@ InitializeNES
 		STA $0700, X
 		INX
 		BNE :-
-	; PLACE ALL SPRITES OFFSCREEN AT Y=255
-	LDA #255
-	LDX #0
-	:
-		STA OAM, X
-		INX
-		INX
-		INX
-		INX
-		BNE :-
+;	; PLACE ALL SPRITES OFFSCREEN AT Y=255
+;	LDA #255
+;	LDX #0
+;	:
+;		STA OAM, X
+;		INX
+;		INX
+;		INX
+;		INX
+;		BNE :-
 	; WAIT FOR SECOND VBLANK
 	:
 		BIT $2002
@@ -190,6 +190,8 @@ InitializeNES
 		CPX #32
 		BCC :-
 
+  JSR MovePresetDataIntoPosition
+  CLI
 	JMP InitializeProgram
 
 .segment "CODE"
@@ -230,8 +232,8 @@ MainNMIInterruptHandler
         ; SPRITE OAM DMA
         LDX #0
         STX $2003
-        LDA #>OAM
-        STA $4014
+;        LDA #>OAM
+;        STA $4014
         ; PALETTES
         LDA #%10001000
         STA $2000 ; SET HORIZONTAL NAMETABLE INCREMENT
@@ -359,7 +361,7 @@ InitializeProgram
         ADC #$00
         STA colorRamHiPtr
         INX 
-        CPX #$1F
+        CPX #$1E
         BNE @Loop
 
         ; JSR InitializeDynamicStorage
@@ -400,12 +402,14 @@ InitScreenLoop
         BNE InitScreenLoop
         RTS 
 
+.segment "RODATA"
 presetKeyCodes
         .BYTE KEY_LEFT,KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7
         .BYTE KEY_8,KEY_9,KEY_0,KEY_PLUS,KEY_MINUS,KEY_POUND
         .BYTE KEY_CLR_HOME,KEY_INST_DEL
 
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; LoadXAndYPosition
 ;-------------------------------------------------------
@@ -429,18 +433,21 @@ PaintPixel
         AND #$80
         BNE ReturnEarlyFromRoutine
         LDA pixelXPosition
-        CMP #$28
+        CMP #CURSOR_EXTREME_RIGHT
         BPL ReturnEarlyFromRoutine
         LDA pixelYPosition
         AND #$80
         BNE ReturnEarlyFromRoutine
         LDA pixelYPosition
-        CMP #$18
+        CMP #CURSOR_EXTREME_BOTTOM
         BPL ReturnEarlyFromRoutine
 
         JSR LoadXAndYPosition
         LDA skipPixel
         BNE ActuallyPaintPixel
+
+        ; FIXME
+        JSR ActuallyPaintPixel
 
         LDA (currentLineInColorRamLoPtr2),Y
         AND #$0F
@@ -476,15 +483,24 @@ ActuallyPaintPixel
 ;-------------------------------------------------------
 AddPixelToNMTUpdate
         LDX NMT_UPDATE_LEN
-        LDA currentLineInColorRamLoPtr2 + pixelXPosition
-        STA NMT_UPDATE, X
-        INX
+
         LDA currentLineInColorRamHiPtr2
         STA NMT_UPDATE, X
         INX
-        LDY currentIndexToColorValues
-        LDA presetColorValuesArray,Y
+
+        LDA currentLineInColorRamLoPtr2
+        CLC
+        ADC pixelXPosition
         STA NMT_UPDATE, X
+        INX
+
+        ;LDY currentIndexToColorValues
+        ;LDA presetColorValuesArray,Y
+        LDA #4
+        STA NMT_UPDATE, X
+        INX
+
+        STX NMT_UPDATE_LEN
         JSR PPU_Update
         RTS
 
@@ -590,16 +606,17 @@ starOneYPosArray  .BYTE $FF,$FF,$00,$01,$01,$01,$00,$FF,$55       ; 5  3210 0123
                   .BYTE $55                                       ;                
                                                                   ;        5       
 
-.segment "RAM"
+.segment "DATA"
 countToMatchCurrentIndex   .BYTE $00
+randomByteAddress  .BYTE $AB,$D0
 
 .segment "CODE"
 ;-------------------------------------------------------
 ; PutRandomByteInAccumulator
 ;-------------------------------------------------------
 PutRandomByteInAccumulator   
-randomByteAddress   =*+$01
-        LDA $E199,X
+        LDA randomByteAddress
+        ORA #$07
         INC randomByteAddress
         RTS 
 
@@ -635,7 +652,7 @@ HasSymmetry
 
         ; Has a pattern to paint on the Y axis
         ; symmetry so prepare for that.
-        LDA #$27
+        LDA #$18
         SEC 
         SBC pixelXPosition
         STA pixelXPosition
@@ -806,9 +823,9 @@ LaunchPsychedelia
 ;        DEX 
 ;        BNE @Loop
 
-        JSR ReinitializeScreen
+        ;JSR ReinitializeScreen
         JSR ReinitializeSequences
-        JSR ClearLastLineOfScreen
+        ;JSR ClearLastLineOfScreen
         ; Falls through
 
 ;-------------------------------------------------------
@@ -840,6 +857,7 @@ MainPaintLoop
         ; Check if we can just do a normal paint or if
         ; we have to handle a customer preset mode or
         ; save/prompt mode. 
+
 HandleAnyCurrentModes   
         LDA currentModeActive
         BEQ DoANormalPaint
@@ -946,11 +964,15 @@ SetUpInterruptHandlers
 ;        CLI 
         RTS 
 
+.segment "DATA"
 countStepsBeforeCheckingJoystickInput   .BYTE $02,$00
+
+.segment "CODE"
 ;-------------------------------------------------------
 ; IRQInterruptHandler
 ;-------------------------------------------------------
 IRQInterruptHandler
+        BIT $4015 ; Clear IRQ
         ; SAVE REGISTERS
         PHA
         TXA
@@ -988,68 +1010,57 @@ b0D03   LDA #$00
         JSR UpdateLineinColorRAMUsingIndex
 
         JSR GetJoystickInput
+
         LDA lastJoystickInput
-        AND #$30
-        CMP #$30
-        BEQ b0D40 ; Neither up nor down have been pushed.
+        AND #PAD_D
+        BEQ :++
+          INC cursorYPosition
+          LDA cursorYPosition
+          CMP #$18
+          BNE :+
+            LDA #$00
+            STA cursorYPosition
+          :
+        :
 
-        CMP #PAD_D
-        BEQ b0D25 ; Player has pressed down.
-        
-        ; Player has pressed up. Incremeent up two lines
-        ; so that when we decrement down one, we're still
-        ; one up!
-        INC cursorYPosition
-        INC cursorYPosition
+        LDA lastJoystickInput
+        AND #PAD_U
+        BEQ :++
+          DEC cursorYPosition
+          LDA cursorYPosition
+          CMP #$FF
+          BNE :+
+            LDA #$17
+            STA cursorYPosition
+          :
+        :
 
-        ; Player has pressed down.
-b0D25   DEC cursorYPosition
-        LDA cursorYPosition
-        CMP #$FF
-        BNE b0D37
-        LDA #$17
-        STA cursorYPosition
-        JMP b0D40
+        LDA lastJoystickInput
+        AND #PAD_L
+        BEQ :++
+          DEC cursorXPosition
+          LDA cursorXPosition
+          CMP #$FF
+          BNE :+
+            LDA #CURSOR_EXTREME_RIGHT
+            STA cursorXPosition
+          :
+        :
 
-b0D37   CMP #$18
-        BNE b0D40
-        LDA #$00
-        STA cursorYPosition
-
-        ; Player has pressed left or right?
-b0D40   LDA lastJoystickInput
-        AND #$C0
-        CMP #$C0
-        BEQ b0D6D ; Player has pressed neither left nor right.
-
-        CMP #PAD_R
-        BEQ b0D52 ; Player has pressed left.
-
-        ; Player has pressed right.
-        INC cursorXPosition
-        INC cursorXPosition
-
-        ; Player has pressed left.
-b0D52   DEC cursorXPosition
-        ; Handle any wrap around from left to right.
-        LDA cursorXPosition
-        CMP #$FF
-        BNE b0D64
-
-        ; Cursor has wrapped around, move it to the extreme
-        ; right of the screen.
-        LDA #CURSOR_EXTREME_RIGHT
-        STA cursorXPosition
-        JMP b0D6D
-
-        ; Handle any wrap around from right to left.
-b0D64   CMP #CURSOR_EXTREME_RIGHT + $01
-        BNE b0D6D
-        LDA #$00
-        STA cursorXPosition
+        LDA lastJoystickInput
+        AND #PAD_R
+        BEQ :++
+          INC cursorXPosition
+          LDA cursorXPosition
+          CMP #CURSOR_EXTREME_RIGHT
+          BCC :+
+            LDA #$00
+            STA cursorXPosition
+          :
+        :
 
 b0D6D   LDA lastJoystickInput
-        AND #PAD_A
+        AND #PAD_SELECT
         BEQ PlayerHasntPressedFire
 
         ; Player has pressed fire.
@@ -1138,7 +1149,7 @@ ApplySmoothingDelay
         STA symmetrySettingForStepCount,X
 
 DrawCursorAndReturnFromInterrupt    
-        LDA #$01
+        LDA #$04
         STA currentColorToPaint
         JSR UpdateLineinColorRAMUsingIndex
         ; Falls through
@@ -1184,18 +1195,26 @@ UpdateLineinColorRAMUsingIndex
 ;-------------------------------------------------------
 AddCursorPixelToNMTUpdate
         LDX NMT_UPDATE_LEN
-        LDA currentLineInColorRamLoPtr + pixelXPosition
-        STA NMT_UPDATE, X
-        INX
+
         LDA currentLineInColorRamHiPtr
         STA NMT_UPDATE, X
         INX
+
+        LDA currentLineInColorRamLoPtr
+        CLC
+        ADC cursorXPosition
+        STA NMT_UPDATE, X
+        INX
+
         LDA currentColorToPaint
         STA NMT_UPDATE, X
+        INX
+
+        STX NMT_UPDATE_LEN
         JSR PPU_Update
         RTS
 
-.segment "RAM"
+.segment "DATA"
 cursorXPosition       .BYTE $0A
 cursorYPosition       .BYTE $0A
 currentStepCount      .BYTE $00
@@ -1217,7 +1236,8 @@ lineWidth               .BYTE $07
 sequencerSpeed          .BYTE $04
 pulseWidth              .BYTE $01
 baseLevel               .BYTE $07
-presetColorValuesArray  .BYTE BLACK,BLUE,RED,PURPLE,GREEN,CYAN,YELLOW,WHITE
+;presetColorValuesArray  .BYTE BLACK,BLUE,RED,PURPLE,GREEN,CYAN,YELLOW,WHITE
+presetColorValuesArray  .BYTE $04,$04,$04,$04,$04,$04,$04,$04
 trackingActivated       .BYTE $FF
 lineModeActivated       .BYTE $00
 presetIndex            .BYTE $05
@@ -1747,7 +1767,7 @@ FinalReturnFromKeyboardCheck
         RTS 
 
 
-.segment "RAM"
+.segment "DATA"
 initialTimeBetweenKeyStrokes   .BYTE $10
 
 .segment "RODATA"
@@ -1782,7 +1802,7 @@ pulsarYPosArray .BYTE $FF,$00,$01,$00,$55       ; 5432106012345
                 .BYTE $FA,$00,$06,$00,$55       ;       4      
                 .BYTE $00,$55                   ;       5      
 
-.segment "RAM"
+.segment "DATA"
 lastLineBufferPtr               .BYTE $FF,$FF,$FF,$FF,$FF,$FF
 dataFreeDigitOne                .BYTE $FF
 dataFreeDigitTwo                .BYTE $FF
@@ -1892,9 +1912,12 @@ ResetIndexAndExitLineModePaint
         STX shouldDrawCursor
         JMP MainPaintLoop
 
+.segment "RODATA"
 lineModeSettingDescriptions
         .BYTE "LINE MODE",$BA," OFF  "
         .BYTE "LINE MODE",$BA," ON   "
+
+.segment "CODE"
 ;-------------------------------------------------------
 ; DrawColorValueBar
 ;-------------------------------------------------------
@@ -1942,7 +1965,7 @@ b13CD   INC currentCountInDrawingColorBar
         BNE b13AC
 b13D8   RTS 
 
-.segment "RAM"
+.segment "DATA"
 currentColorBarOffset         .BYTE $FF
 currentNodeInColorBar         .BYTE $FF
 maxToDrawOnColorBar           .BYTE $FF
@@ -2163,7 +2186,7 @@ ReachedLastColor
         RTS 
 
 
-.segment "RAM"
+.segment "DATA"
 maxValueForPresetValueArray       .BYTE $00,$40,$08,$40,$10,$10,$08
                                   .BYTE $20,$10,$08
 minValueForPresetValueArray       .BYTE $00,$00,$00,$00,$00
@@ -2467,7 +2490,7 @@ b177B   LDA #$FF
 functionKeyToSequenceArray   .BYTE <burstGeneratorF1,<burstGeneratorF2
                              .BYTE <burstGeneratorF3,<burstGeneratorF4
 
-.segment "RAM"
+.segment "DATA"
 txtDataFree
         .BYTE "DATA",$BA," ",$B0,$B0,$B0," FREE  "
 functionKeys
@@ -2828,7 +2851,7 @@ ResetSequencerToStart
         STA currentSequencePtrHi
         RTS 
 
-.segment "RAM"
+.segment "DATA"
 stepsRemainingInSequencerSequence   .BYTE $00
 txtSequFree
         .BYTE "SEQU",$BA," ",$B0,$B0,$B0," FREE  "
@@ -3096,6 +3119,7 @@ GamepadPoll
 ;-------------------------------------------------------
 GetJoystickInput   
         ; Just populate lastJoystickInput for now.
+        ;JSR PerformRandomJoystickMovement
         JSR GamepadPoll
         RTS
 
@@ -3158,7 +3182,7 @@ b1BC6   LDA #>dynamicStorage
         STA cursorYPosition
         RTS 
 
-.segment "RAM"
+.segment "DATA"
 recordingOffset
         .BYTE $00
 previousPixelXPosition
@@ -3384,7 +3408,7 @@ txtPatternLoop
         JMP WriteLastLineBufferToScreen
         ; Returns
 
-.segment "RAM"
+.segment "DATA"
 txtCustomPatterns
         .BYTE "USER SHAPE "
         .BYTE $A3,$B0
@@ -3629,8 +3653,8 @@ txtContinueLoadOrAbort
         .BYTE "{C}ONTINUE LOAD@ OR {A}BORT? "
         .BYTE "           "
 
-.segment "RAM"
-demoModeActive          .BYTE $01
+.segment "DATA"
+demoModeActive          .BYTE $00
 joystickInputDebounce   .BYTE $01
 joystickInputRandomizer .BYTE $10
 
@@ -3639,21 +3663,21 @@ joystickInputRandomizer .BYTE $10
 ; PerformRandomJoystickMovement
 ;-------------------------------------------------------
 PerformRandomJoystickMovement 
-        DEC joystickInputDebounce
-        BEQ b1F2D
-        RTS 
+;        DEC joystickInputDebounce
+;        BEQ b1F2D
+;        RTS 
 
 b1F2D   JSR PutRandomByteInAccumulator
-        AND #$1F
-        ORA #$01
-        STA joystickInputDebounce
-        LDA joystickInputRandomizer
-        EOR #$10
-        STA joystickInputRandomizer
-        JSR PutRandomByteInAccumulator
-        AND #$0F
-        ORA joystickInputRandomizer
-        EOR #$1F
+;        AND #$1F
+;        ORA #$01
+;        STA joystickInputDebounce
+;        LDA joystickInputRandomizer
+;        EOR #$10
+;        STA joystickInputRandomizer
+;        JSR PutRandomByteInAccumulator
+;        AND #$F0
+;        ORA joystickInputRandomizer
+;        EOR #$1F
         STA lastJoystickInput
         DEC demoModeCountDownToChangePreset
         BEQ b1F51
@@ -3668,7 +3692,8 @@ b1F56   ADC #$20
         TAX 
         LDA #$00
         STA shiftPressed
-        JMP SelectNewPreset
+        ;JMP SelectNewPreset
+        RTS
         ; Returns
 
 ;-------------------------------------------------------
@@ -3693,7 +3718,7 @@ demoMessage
         .BYTE "      PSYCHEDELIA BY JEFF MINTER         "
 
 ;* = $1FA9
-.segment "RAM"
+.segment "DATA"
 demoModeCountDownToChangePreset
         .BYTE $20
 
@@ -3715,6 +3740,19 @@ NMIInterruptHandler
         PHA
         RTI
 
+.import __DATA_LOAD__, __DATA_RUN__, __DATA_SIZE__
+;-------------------------------------------------------
+; MovePresetDataIntoPosition
+;-------------------------------------------------------
+MovePresetDataIntoPosition   
+
+        LDY __DATA_SIZE__
+_Loop   LDA __DATA_LOAD__,Y
+        STA __DATA_RUN__,Y
+        DEY 
+        BNE _Loop
+
+        RTS 
 
 .include "presets.asm"
 .include "burst_generators.asm"
