@@ -84,7 +84,7 @@ INES_SRAM   = 0 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 ;
 
 .SEGMENT "TILES"
-.INCBIN "background.chr"
+.INCBIN "bggfx.chr"
 
 ;
 ; VECTORS PLACED AT TOP 6 BYTES OF MEMORY AREA
@@ -137,8 +137,8 @@ InitializeNES
 	STA $2001 ; DISABLE RENDERING
 	STA $4015 ; DISABLE APU SOUND
 	;STA $4010 ; DISABLE DMC IRQ
-	;LDA #$40
-	;STA $4017 ; DISABLE APU IRQ
+	LDA #$00
+	STA $4017 ; ENABLE APU IRQ
 	CLD       ; DISABLE DECIMAL MODE
 	LDX #$FF
 	TXS       ; INITIALIZE STACK
@@ -307,24 +307,24 @@ MainNMIInterruptHandler
 ; uploads OAM, palette, and nametable update to PPU
 ;-------------------------------------------------------
 PPU_Update
-	LDA #1
-	STA NMI_READY
-	:
-		LDA NMI_READY
-		BNE :-
-	RTS
+        LDA #1
+        STA NMI_READY
+        :
+          LDA NMI_READY
+          BNE :-
+        RTS
 
 ;-------------------------------------------------------
 ; ppu_off: waits until next NMI, turns rendering off (now safe to write PPU
 ; directly via $2007)
 ;-------------------------------------------------------
 PPU_Off
-	LDA #2
-	STA NMI_READY
-	:
-		LDA NMI_READY
-		BNE :-
-	RTS
+        LDA #2
+        STA NMI_READY
+        :
+          LDA NMI_READY
+          BNE :-
+        RTS
 
 ;-------------------------------------------------------
 ; InitializeProgram
@@ -447,7 +447,7 @@ PaintPixel
         BNE ActuallyPaintPixel
 
         ; FIXME
-        JSR ActuallyPaintPixel
+        JMP ActuallyPaintPixel
 
         LDA (currentLineInColorRamLoPtr2),Y
         AND #$0F
@@ -494,14 +494,14 @@ AddPixelToNMTUpdate
         STA NMT_UPDATE, X
         INX
 
-        ;LDY currentIndexToColorValues
-        ;LDA presetColorValuesArray,Y
-        LDA #4
+        LDY currentIndexToColorValues
+        LDA presetColorValuesArray,Y
+        ;LDA #4
         STA NMT_UPDATE, X
         INX
 
         STX NMT_UPDATE_LEN
-        JSR PPU_Update
+        ;JSR PPU_Update
         RTS
 
         
@@ -643,8 +643,6 @@ CleanUpAndReturnFromSymmetry
         PLA 
         STA pixelXPosition
         RTS 
-
-        RTS
 
 HasSymmetry   
         CMP #X_AXIS_SYMMETRY
@@ -823,7 +821,7 @@ LaunchPsychedelia
 ;        DEX 
 ;        BNE @Loop
 
-        ;JSR ReinitializeScreen
+        JSR ReinitializeScreen
         JSR ReinitializeSequences
         ;JSR ClearLastLineOfScreen
         ; Falls through
@@ -890,6 +888,7 @@ CheckCurrentBuffer
         LDA baseLevelArray,X
         CMP #$FF
         BNE ShouldDoAPaint
+
         STX shouldDrawCursor
         JMP MainPaintLoop
 
@@ -929,7 +928,6 @@ ShouldDoAPaint
 
         DEC baseLevelArray,X
 GoBackToStartOfLoop   
-        JSR PPU_Update
         JMP MainPaintLoop
 
 .segment "RAM"
@@ -1157,6 +1155,7 @@ DrawCursorAndReturnFromInterrupt
 JumpToCheckKeyboardInput    
         JSR CheckKeyboardInput
 
+        JSR PPU_Update
         ; RESTORE REGISTERS AND RETURN
         PLA
         TAY
@@ -1211,15 +1210,15 @@ AddCursorPixelToNMTUpdate
         INX
 
         STX NMT_UPDATE_LEN
-        JSR PPU_Update
+        ;JSR PPU_Update
         RTS
 
 .segment "DATA"
 cursorXPosition       .BYTE $0A
 cursorYPosition       .BYTE $0A
 currentStepCount      .BYTE $00
-stepsSincePressedFire .BYTE $00
-stepsExceeded255      .BYTE $00
+stepsSincePressedFire .BYTE $01
+stepsExceeded255      .BYTE $01
 
 ; This is where the presets get loaded to. It represents
 ; the data structure for the presets.
@@ -1236,8 +1235,7 @@ lineWidth               .BYTE $07
 sequencerSpeed          .BYTE $04
 pulseWidth              .BYTE $01
 baseLevel               .BYTE $07
-;presetColorValuesArray  .BYTE BLACK,BLUE,RED,PURPLE,GREEN,CYAN,YELLOW,WHITE
-presetColorValuesArray  .BYTE $04,$04,$04,$04,$04,$04,$04,$04
+presetColorValuesArray  .BYTE BLACK,BLUE,RED,PURPLE,GREEN,CYAN,YELLOW,WHITE
 trackingActivated       .BYTE $FF
 lineModeActivated       .BYTE $00
 presetIndex            .BYTE $05
