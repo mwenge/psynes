@@ -232,8 +232,6 @@ MainNMIInterruptHandler
         ; SPRITE OAM DMA
         LDX #0
         STX $2003
-;        LDA #>OAM
-;        STA $4014
         ; PALETTES
         LDA #%10001000
         STA $2000 ; SET HORIZONTAL NAMETABLE INCREMENT
@@ -503,11 +501,17 @@ AddPixelToNMTUpdate
 
         LDY baseLevelForCurrentPixel
         LDA presetColorValuesArray,Y
-        ;LDA #4
         STA NMT_UPDATE, X
         INX
 
         STX NMT_UPDATE_LEN
+
+        ; If we've got a few to write, let them do that now.
+        CPX #$50
+        BMI @UpdateComplete
+        JSR PPU_Update
+
+@UpdateComplete
         RTS
 
         
@@ -809,11 +813,11 @@ ReinitializeSequences
         CPX #$40
         BNE @Loop
 
+        STA currentPatternElement
         STA timerBetweenKeyStrokes
         STA shouldDrawCursor
         STA skipPixel
         LDA #$01
-        STA currentPatternElement
         STA currentSymmetrySetting
         RTS 
 
@@ -1173,12 +1177,12 @@ DrawCursorAndReturnFromInterrupt
         LDA #$04
         STA currentColorToPaint
         JSR PaintCursorAtCurrentPosition
+        JSR PPU_Update
         ; Falls through
 
 CheckKeyboardAndReturnFromInterrupt    
         JSR CheckKeyboardInput
 
-        JSR PPU_Update
         ; RESTORE REGISTERS AND RETURN
         PLA
         TAY
