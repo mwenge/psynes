@@ -84,7 +84,59 @@ INES_SRAM   = 0 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 ;
 
 .SEGMENT "TILES"
-.INCBIN "bggfx.chr"
+;.INCBIN "bggfx.chr"
+; Tile 1
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 2
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 3
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 4
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 2
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 3
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 4
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 2
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 3
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 4
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 2
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 3
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 4
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 2
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 3
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+; Tile 4
+.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+
+
+.SEGMENT "RODATA"
+.include "palettes.asm"
 
 ;
 ; VECTORS PLACED AT TOP 6 BYTES OF MEMORY AREA
@@ -507,7 +559,7 @@ AddPixelToNMTUpdate
         STX NMT_UPDATE_LEN
 
         ; If we've got a few to write, let them do that now.
-        CPX #$50
+        CPX #$30
         BMI @UpdateComplete
         JSR PPU_Update
 
@@ -1080,8 +1132,29 @@ CanUpdatePixelBuffers
           :
         :
 
-b0D6D   LDA lastJoystickInput
+        LDA lastJoystickInput
+        AND #PAD_B
+        BEQ :++
+          INC currentSymmetrySetting
+          LDA currentSymmetrySetting
+          CMP #$05
+          BNE :+
+            LDA #$00
+            STA currentSymmetrySetting
+          :
+        :
+
+        LDA lastJoystickInput
         AND #PAD_SELECT
+        BEQ :+
+          INC currentPatternElement
+          LDA currentPatternElement
+          AND #$0F
+          STA currentPatternElement
+        :
+
+b0D6D   LDA lastJoystickInput
+        AND #PAD_A
         BEQ PlayerHasntPressedFire
 
         ; Player has pressed fire.
@@ -1244,7 +1317,7 @@ cursorXPosition       .BYTE $0A
 cursorYPosition       .BYTE $0A
 currentStepCount      .BYTE $00
 ; FIXME: For some reason these need to be set here, but not on the C64.
-stepsSincePressedFire .BYTE $01
+stepsSincePressedFire .BYTE $00
 stepsExceeded255      .BYTE $01
 
 ; This is where the presets get loaded to. It represents
