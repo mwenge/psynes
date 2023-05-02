@@ -20,45 +20,47 @@
 .feature loose_char_term
 
 .segment "ZEROPAGE"
-pixelXPosition                .res 1
-pixelYPosition                .res 1
-baseLevelForCurrentPixel     .res 1
-currentLineInColorRamLoPtr2   .res 1
-currentLineInColorRamHiPtr2   .res 1
-previousCursorXPositionZP      .res 1
-previousPixelYPositionZP      .res 1
-currentLineInColorRamLoPtr    .res 1
-currentLineInColorRamHiPtr    .res 1
-currentColorToPaint           .res 1
-xPosLoPtr                     .res 1
-xPosHiPtr                     .res 1
-currentPatternElement         .res 1
-yPosLoPtr                     .res 1
-yPosHiPtr                     .res 1
-timerBetweenKeyStrokes        .res 1
-shouldDrawCursor              .res 1
-currentSymmetrySettingForStep .res 1
-currentSymmetrySetting        .res 1
-offsetForYPos                 .res 1
-skipPixel                     .res 1
-colorBarColorRamLoPtr         .res 1
-colorBarColorRamHiPtr         .res 1
-currentColorSet               .res 1
-presetSequenceDataLoPtr       .res 1
-presetSequenceDataHiPtr       .res 1
-currentSequencePtrLo          .res 1
-currentSequencePtrHi          .res 1
-lastJoystickInput             .res 1
-customPatternLoPtr            .res 1
-customPatternHiPtr            .res 1
-minIndexToColorValues         .res 1
-initialBaseLevelForCustomPresets     .res 1
-currentIndexToPresetValue     .res 1
-lastKeyPressed                .res 1
-presetLoPtr                   .res 1
-presetHiPtr                   .res 1
-colorRamLoPtr                .res 1
-colorRamHiPtr                .res 1
+pixelXPosition                   .res 1
+pixelYPosition                   .res 1
+baseLevelForCurrentPixel         .res 1
+currentLineInColorRamLoPtr2      .res 1
+currentLineInColorRamHiPtr2      .res 1
+previousCursorXPositionZP        .res 1
+previousPixelYPositionZP         .res 1
+currentLineInColorRamLoPtr       .res 1
+currentLineInColorRamHiPtr       .res 1
+currentColorToPaint              .res 1
+xPosLoPtr                        .res 1
+xPosHiPtr                        .res 1
+currentPatternElement            .res 1
+yPosLoPtr                        .res 1
+yPosHiPtr                        .res 1
+timerBetweenKeyStrokes           .res 1
+shouldDrawCursor                 .res 1
+currentSymmetrySettingForStep    .res 1
+currentSymmetrySetting           .res 1
+offsetForYPos                    .res 1
+skipPixel                        .res 1
+colorBarColorRamLoPtr            .res 1
+colorBarColorRamHiPtr            .res 1
+currentColorSet                  .res 1
+presetSequenceDataLoPtr          .res 1
+presetSequenceDataHiPtr          .res 1
+currentSequencePtrLo             .res 1
+currentSequencePtrHi             .res 1
+lastJoystickInput                .res 1
+customPatternLoPtr               .res 1
+customPatternHiPtr               .res 1
+minIndexToColorValues            .res 1
+initialBaseLevelForCustomPresets .res 1
+currentIndexToPresetValue        .res 1
+lastKeyPressed                   .res 1
+presetLoPtr                      .res 1
+presetHiPtr                      .res 1
+colorRamLoPtr                    .res 1
+colorRamHiPtr                    .res 1
+screenBufferLoPtr                .RES 1
+screenBufferHiPtr                .RES 1
 
 shiftKey                      = $028D
 storageOfSomeKind             = $7FFF
@@ -70,7 +72,7 @@ storageOfSomeKind             = $7FFF
 
 INES_MAPPER = 0 ; 0 = NROM
 INES_MIRROR = 1 ; 0 = HORIZONTAL MIRRORING, 1 = VERTICAL MIRRORING
-INES_SRAM   = 0 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
+INES_SRAM   = 1 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 
 .BYTE 'N', 'E', 'S', $1A ; ID
 .BYTE $02 ; 16K PRG CHUNK COUNT
@@ -376,15 +378,26 @@ PPU_Off
           BNE :-
         RTS
 
+.segment "SRAM"
+screenBufferLoPtrArray
+        .BYTE $00,$00,$00,$00,$00,$00,$00,$00
+        .BYTE $00,$00,$00,$00,$00,$00,$00,$00
+        .BYTE $00,$00,$00,$00,$00,$00,$00,$00
+        .BYTE $00,$00,$00,$00,$00,$00
+screenBufferHiPtrArray
+        .BYTE $00,$00,$00,$00,$00,$00,$BF,$00
+        .BYTE $00,$00,$00,$00,$00,$00,$00,$00
+        .BYTE $00,$00,$00,$00,$00,$00,$00,$00
+        .BYTE $00,$00,$00,$00,$00,$00
+screenBuffer      .RES 960
+
+.segment "CODE"
 ;-------------------------------------------------------
 ; InitializeProgram
 ;-------------------------------------------------------
 InitializeProgram
         ; Set border and background to black
         LDA #$00
-;        STA $D020    ;Border Color
-;        STA $D021    ;Background Color 0
-
         STA shouldDrawCursor
 
         ; Create a Hi/Lo pointer to $2000
@@ -394,13 +407,12 @@ InitializeProgram
         STA colorRamLoPtr
 
         ; Populate a table of hi/lo ptrs to the color RAM
-        ; of each line on the screen (e.g. $D800,
-        ; $D828, $D850 etc). Each entry represents a single
-        ; line 40 bytes long and there are nineteen lines.
+        ; of each line on the screen (e.g. $2000,
+        ; $02020). Each entry represents a single
+        ; line 32 bytes long and there are 30 lines.
         ; The last line is reserved for configuration messages.
         LDX #$00
-@Loop   
-        LDA colorRamHiPtr
+@Loop   LDA colorRamHiPtr
         STA colorRAMLineTableHiPtrArray,X
         LDA colorRamLoPtr
         STA colorRAMLineTableLoPtrArray,X
@@ -413,6 +425,27 @@ InitializeProgram
         INX 
         CPX #$1E
         BNE @Loop
+
+        ; Create a Hi/Lo pointer to  the screen buffer.
+        LDA #>screenBuffer
+        STA screenBufferHiPtr
+        LDA #<screenBuffer
+        STA screenBufferLoPtr
+
+        LDX #$00
+@Loop2  LDA screenBufferHiPtr
+        STA screenBufferHiPtrArray,X
+        LDA screenBufferLoPtr
+        STA screenBufferLoPtrArray,X
+        CLC 
+        ADC #$20
+        STA screenBufferLoPtr
+        LDA screenBufferHiPtr
+        ADC #$00
+        STA screenBufferHiPtr
+        INX 
+        CPX #$1E
+        BNE @Loop2
 
         ; JSR InitializeDynamicStorage
         JMP LaunchPsychedelia
@@ -472,10 +505,17 @@ presetKeyCodes
 ;-------------------------------------------------------
 LoadXAndYPosition   
         LDX pixelYPosition
+
         LDA colorRAMLineTableLoPtrArray,X
         STA currentLineInColorRamLoPtr2
         LDA colorRAMLineTableHiPtrArray,X
         STA currentLineInColorRamHiPtr2
+
+        LDA screenBufferLoPtrArray,X
+        STA screenBufferLoPtr
+        LDA screenBufferHiPtrArray,X
+        STA screenBufferHiPtr
+
         LDY pixelXPosition
 ReturnEarlyFromRoutine   
         RTS 
@@ -503,10 +543,7 @@ PaintPixel
         LDA skipPixel
         BNE ActuallyPaintPixel
 
-        ; FIXME
-        JMP ActuallyPaintPixel
-
-        LDA (currentLineInColorRamLoPtr2),Y
+        LDA (screenBufferLoPtr),Y
         AND #$0F
 
         LDX #$00
@@ -539,6 +576,14 @@ ActuallyPaintPixel
 ; AddPixelToNMTUpdate
 ;-------------------------------------------------------
 AddPixelToNMTUpdate
+
+        ; Write to the screen buffer.
+        LDY baseLevelForCurrentPixel
+        LDA presetColorValuesArray,Y
+        LDY pixelXPosition
+        STA (screenBufferLoPtr),Y
+
+        ; Write to the actual screen (the PPU).
         LDX NMT_UPDATE_LEN
 
         LDA currentLineInColorRamHiPtr2
