@@ -101,33 +101,47 @@ INES_SRAM   = 1 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 ; Tile 4
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 2
+; Tile 5
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 3
+; Tile 6
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 4
+; Tile 7
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 2
+; Tile 8
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 3
+; Tile 9
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 4
+; Tile 10
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 2
+; Tile 11
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 3
+; Tile 12
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 4
+; Tile 13
 .BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 14
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 15
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 16
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
+.BYTE $00,$00,$00,$00,$00,$00,$00,$00
+; Tile 17
+.BYTE $00,$3C,$3C,$3C,$3C,$00,$00,$00
+.BYTE $00,$3C,$3C,$3C,$3C,$00,$00,$00
+
+CURSOR_TILE = $10
 
 .SEGMENT "RODATA"
 .include "palettes.asm"
@@ -1291,7 +1305,7 @@ ApplySmoothingDelay
         STA symmetrySettingForStepCount,X
 
 DrawCursorAndReturnFromInterrupt    
-        LDA #$04
+        LDA #CURSOR_TILE
         STA currentColorToPaint
         JSR PaintCursorAtCurrentPosition
         JSR PPU_Update
