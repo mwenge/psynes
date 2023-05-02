@@ -450,6 +450,10 @@ currentPixel .res 1
 ; InitializeScreenWithInitCharacter
 ;-------------------------------------------------------
 InitializeScreenWithInitCharacter 
+        ; Enabling this routine results in stray cursors
+        ; being left around.
+        RTS
+
         JSR PPU_Off
 
         ; first nametable, start by clearing to empty
@@ -598,7 +602,7 @@ AddPixelToNMTUpdate
         STX NMT_UPDATE_LEN
 
         ; If we've got a few to write, let them do that now.
-        CPX #$30
+        CPX #$70
         BMI @UpdateComplete
         JSR PPU_Update
         JSR SetPaletteForPixelPosition
