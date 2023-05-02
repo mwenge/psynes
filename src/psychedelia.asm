@@ -61,6 +61,8 @@ colorRamLoPtr                    .res 1
 colorRamHiPtr                    .res 1
 screenBufferLoPtr                .RES 1
 screenBufferHiPtr                .RES 1
+paletteLoPtr .RES 1
+paletteHiPtr .RES 1
 
 shiftKey                      = $028D
 storageOfSomeKind             = $7FFF
@@ -91,51 +93,41 @@ INES_SRAM   = 1 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 ; Tile 2
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 3
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 4
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 ; Tile 2
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 3
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 4
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 ; Tile 2
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 3
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 4
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
 ; Tile 2
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 3
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 ; Tile 4
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
+.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
 .BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 2
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-; Tile 3
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-; Tile 4
-.BYTE $00,$7E,$7E,$7E,$7E,$7E,$7E,$00
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-
 
 .SEGMENT "RODATA"
 .include "palettes.asm"
@@ -215,16 +207,7 @@ InitializeNES
           STA $0700, X
           INX
           BNE :-
-      ;	; PLACE ALL SPRITES OFFSCREEN AT Y=255
-      ;	LDA #255
-      ;	LDX #0
-      ;	:
-      ;		STA OAM, X
-      ;		INX
-      ;		INX
-      ;		INX
-      ;		INX
-      ;		BNE :-
+
         ; WAIT FOR SECOND VBLANK
         :
           BIT $2002
@@ -234,15 +217,10 @@ InitializeNES
         LDA #%10001000
         STA $2000
 
-
-        ; setup 
-        LDX #0
-        :
-          LDA example_palette, X
-          STA PALETTE, X
-          INX
-          CPX #32
-          BCC :-
+        LDA paletteArrayLoPtr
+        STA paletteLoPtr
+        LDA paletteArrayHiPtr
+        STA paletteHiPtr
 
         JSR MovePresetDataIntoPosition
         CLI
@@ -289,18 +267,20 @@ MainNMIInterruptHandler
         ; PALETTES
         LDA #%10001000
         STA $2000 ; SET HORIZONTAL NAMETABLE INCREMENT
+
         LDA $2002
         LDA #$3F
         STA $2006
         STX $2006 ; SET PPU ADDRESS TO $3F00
 
-        LDX #0
+        LDY #0
         :
-          LDA PALETTE, X
+          LDA (paletteLoPtr), Y
           STA $2007
-          INX
-          CPX #32
+          INY
+          CPY #16
           BCC :-
+
 
         ; NAMETABLE UPDATE
         LDX #0
@@ -573,6 +553,20 @@ ActuallyPaintPixel
         RTS 
 
 ;-------------------------------------------------------
+;-------------------------------------------------------
+SetPaletteForPixelPosition
+        LDX baseLevelForCurrentPixel
+        LDY presetColorValuesArray,X
+
+        LDA paletteArrayLoPtr,Y
+        STA paletteLoPtr
+        LDA paletteArrayHiPtr,Y
+        STA paletteHiPtr
+
+
+        RTS
+
+;-------------------------------------------------------
 ; AddPixelToNMTUpdate
 ;-------------------------------------------------------
 AddPixelToNMTUpdate
@@ -607,6 +601,7 @@ AddPixelToNMTUpdate
         CPX #$30
         BMI @UpdateComplete
         JSR PPU_Update
+        JSR SetPaletteForPixelPosition
 
 @UpdateComplete
         RTS
