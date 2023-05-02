@@ -758,7 +758,7 @@ HasSymmetry
 
         ; Has a pattern to paint on the Y axis
         ; symmetry so prepare for that.
-        LDA #$18
+        LDA #30
         SEC 
         SBC pixelXPosition
         STA pixelXPosition
@@ -785,7 +785,7 @@ HasSymmetry
         ; on our Y axis.
 
         ; First we do the Y axis.
-        LDA #$17
+        LDA #28
         SEC 
         SBC pixelYPosition
         STA pixelYPosition
@@ -805,14 +805,14 @@ PaintXAxisPixelForSymmetry
         RTS 
 
 XAxisSymmetry   
-        LDA #$17
+        LDA #29
         SEC 
         SBC pixelYPosition
         STA pixelYPosition
         JMP PaintXAxisPixelForSymmetry
 
 XYSymmetry   
-        LDA #$17
+        LDA #29
         SEC 
         SBC pixelYPosition
         STA pixelYPosition
