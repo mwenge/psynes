@@ -1195,16 +1195,16 @@ CanUpdatePixelBuffers
 
 b0D6D   LDA lastJoystickInput
         AND #PAD_A
-        BEQ PlayerHasntPressedFire
+        BNE PlayerHasPressedFire
 
-        ; Player has pressed fire.
+        ; Player hasn't pressed fire.
         LDA #$00
         STA stepsSincePressedFire
         JMP DrawCursorAndReturnFromInterrupt
         ; Returns
 
         ; Player hasn't pressed fire.
-PlayerHasntPressedFire   
+PlayerHasPressedFire   
         LDA stepsExceeded255
         BEQ DecrementPulseWidthCounter
         LDA stepsSincePressedFire
@@ -1358,7 +1358,7 @@ cursorYPosition       .BYTE $0A
 currentStepCount      .BYTE $00
 ; FIXME: For some reason these need to be set here, but not on the C64.
 stepsSincePressedFire .BYTE $00
-stepsExceeded255      .BYTE $01
+stepsExceeded255      .BYTE $00
 
 ; This is where the presets get loaded to. It represents
 ; the data structure for the presets.
