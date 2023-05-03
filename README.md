@@ -38,7 +38,7 @@ $ make
 ```
 
 ## About
-Made out of curiosity as part of the [Psychedelia][https://github.com/mwenge/psychedelia] project.
+Made out of curiosity as part of the [Psychedelia](https://github.com/mwenge/psychedelia) project.
 
 [cc65]: https://cc65.github.io/
 [FCEUX]: https://fceux.com/
