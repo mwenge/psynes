@@ -67,6 +67,7 @@ paletteHiPtr .RES 1
 shiftKey                      = $028D
 storageOfSomeKind             = $7FFF
 
+CURSOR_TILE = $10
 
 .include "constants.asm"
 
@@ -88,60 +89,8 @@ INES_SRAM   = 1 ; 1 = BATTERY BACKED SRAM AT $6000-7FFF
 ;
 
 .SEGMENT "TILES"
-;.INCBIN "bggfx.chr"
-; Tile 1
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 2
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 3
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 4
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 5
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 6
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 7
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 8
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 9
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 10
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 11
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 12
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-; Tile 13
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 14
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 15
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 16
-.BYTE $00,$EE,$EE,$EE,$00,$EE,$EE,$EE
-.BYTE $00,$00,$00,$00,$00,$00,$00,$00
-; Tile 17
-.BYTE $00,$3C,$3C,$3C,$3C,$00,$00,$00
-.BYTE $00,$3C,$3C,$3C,$3C,$00,$00,$00
+.include "tileset.asm"
 
-CURSOR_TILE = $10
 
 .SEGMENT "RODATA"
 .include "palettes.asm"
@@ -237,10 +186,31 @@ InitializeNES
         STA paletteHiPtr
 
         JSR MovePresetDataIntoPosition
+        JSR WriteTitleText
         CLI
         JMP InitializeProgram
 
-.segment "CODE"
+;-------------------------------------------------------
+; WriteTitleText
+;-------------------------------------------------------
+WriteTitleText 
+        JSR PPU_Off
+
+        ; first nametable, start by clearing to empty
+        lda $2002 ; reset latch
+        lda #$21
+        sta $2006
+        lda #$FD
+        sta $2006
+        LDX #$00
+        :
+          LDA demoMessage,X
+          STA $2007
+          INX 
+          CPX #$28
+          BNE :-
+
+        RTS 
 ;-------------------------------------------------------
 ; MainNMIInterruptHandler
 ;-------------------------------------------------------
