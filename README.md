@@ -1,6 +1,6 @@
-# Psychedelia by Jeff Minter (NES)
 
-<img src="https://user-images.githubusercontent.com/58846/114322575-e3e6b480-9b18-11eb-8371-2cbcb760330b.gif" height=300>
+# Psychedelia by Jeff Minter (NES)
+<img src="https://user-images.githubusercontent.com/58846/236032019-893943fa-659e-4ac0-9242-4ed6b0fe3a4f.gif" height=300>
 
 
 <!-- vim-markdown-toc GFM -->
