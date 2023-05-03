@@ -584,10 +584,21 @@ SetPaletteForPixelPosition
 
         RTS
 
+.segment "ZEROPAGE"
+updatingNMT .res 1
+
+.segment "CODE"
+
 ;-------------------------------------------------------
 ; AddPixelToNMTUpdate
 ;-------------------------------------------------------
 AddPixelToNMTUpdate
+        ; FIXME
+        ; We need to lock out the IRQ from updating our
+        ; NMT_UPDATE table while we're doing it. Otherwise
+        ; we end up with artefacts. This is not the solution.
+        LDA #1
+        STA updatingNMT 
 
         ; Write to the screen buffer.
         LDY baseLevelForCurrentPixel
@@ -622,6 +633,8 @@ AddPixelToNMTUpdate
         JSR SetPaletteForPixelPosition
 
 @UpdateComplete
+        LDA #0
+        STA updatingNMT 
         RTS
 
         
@@ -1097,6 +1110,7 @@ countStepsBeforeCheckingJoystickInput   .BYTE $02,$00
 ; IRQInterruptHandler
 ;-------------------------------------------------------
 IRQInterruptHandler
+
         BIT $4015 ; Clear IRQ
 
         ; SAVE REGISTERS
@@ -1105,6 +1119,17 @@ IRQInterruptHandler
         PHA
         TYA
         PHA
+
+        LDA updatingNMT 
+        BEQ:+
+          ; RESTORE REGISTERS AND RETURN
+          PLA
+          TAY
+          PLA
+          TAX
+          PLA
+          RTI
+        :
 
         ; The sequencer is played by the interrupt handler.
         ; Check if it's active.
@@ -1134,6 +1159,7 @@ SequencerNotActiveCheckJoystickInput
         ; Once in every 256 interrupts, check the joystick
         ; for input and act on it.
 CanUpdatePixelBuffers   
+
         LDA #$00
         STA currentColorToPaint
         LDA cursorSpeed
