@@ -39,6 +39,9 @@ $ make
 
 ## About
 Made out of curiosity as part of the [Psychedelia](https://github.com/mwenge/psychedelia) project.
+This [example project](https://github.com/bbbradsmith/NES-ca65-example/) was a big help in getting started.
+Let's face it: it's slow. I'm still thinking of what I can do about that.
+
 
 [cc65]: https://cc65.github.io/
 [FCEUX]: https://fceux.com/
