@@ -528,13 +528,13 @@ PaintPixel
         AND #$80
         BNE ReturnEarlyFromRoutine
         LDA pixelXPosition
-        CMP #29
+        CMP #32
         BPL ReturnEarlyFromRoutine
         LDA pixelYPosition
         AND #$80
         BNE ReturnEarlyFromRoutine
         LDA pixelYPosition
-        CMP #28
+        CMP #30
         BPL ReturnEarlyFromRoutine
 
         JSR LoadXAndYPosition
@@ -772,7 +772,7 @@ HasSymmetry
 
         ; Has a pattern to paint on the Y axis
         ; symmetry so prepare for that.
-        LDA #30
+        LDA #31
         SEC 
         SBC pixelXPosition
         STA pixelXPosition
@@ -799,7 +799,7 @@ HasSymmetry
         ; on our Y axis.
 
         ; First we do the Y axis.
-        LDA #28
+        LDA #29
         SEC 
         SBC pixelYPosition
         STA pixelYPosition
