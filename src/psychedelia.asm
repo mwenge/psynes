@@ -63,6 +63,7 @@ screenBufferLoPtr                .RES 1
 screenBufferHiPtr                .RES 1
 paletteLoPtr .RES 1
 paletteHiPtr .RES 1
+playerPressedFire .res 1
 
 shiftKey                      = $028D
 storageOfSomeKind             = $7FFF
@@ -554,22 +555,12 @@ SetPaletteForPixelPosition
 
         RTS
 
-.segment "ZEROPAGE"
-updatingNMT .res 1
-
 .segment "CODE"
 
 ;-------------------------------------------------------
 ; AddPixelToNMTUpdate
 ;-------------------------------------------------------
 AddPixelToNMTUpdate
-        ; FIXME
-        ; We need to lock out the IRQ from updating our
-        ; NMT_UPDATE table while we're doing it. Otherwise
-        ; we end up with artefacts. This is not the solution.
-        LDA #1
-        STA updatingNMT 
-
         ; Write to the screen buffer.
         LDY baseLevelForCurrentPixel
         LDA presetColorValuesArray,Y
@@ -597,14 +588,12 @@ AddPixelToNMTUpdate
         STX NMT_UPDATE_LEN
 
         ; If we've got a few to write, let them do that now.
-        CPX #$70
+        CPX #$80
         BMI @UpdateComplete
-        JSR PPU_Update
         JSR SetPaletteForPixelPosition
+        JSR PPU_Update
 
 @UpdateComplete
-        LDA #0
-        STA updatingNMT 
         RTS
 
         
@@ -961,6 +950,8 @@ MainPaintLoop
         ; we have to handle a customer preset mode or
         ; save/prompt mode. 
 
+        JSR CheckPlayerInput
+
 HandleAnyCurrentModes   
         LDA currentModeActive
         BEQ DoANormalPaint
@@ -1090,17 +1081,6 @@ IRQInterruptHandler
         TYA
         PHA
 
-        LDA updatingNMT 
-        BEQ:+
-          ; RESTORE REGISTERS AND RETURN
-          PLA
-          TAY
-          PLA
-          TAX
-          PLA
-          RTI
-        :
-
         ; The sequencer is played by the interrupt handler.
         ; Check if it's active.
         LDA stepsRemainingInSequencerSequence
@@ -1131,99 +1111,29 @@ SequencerNotActiveCheckJoystickInput
 CanUpdatePixelBuffers   
 
         LDA #$00
-        STA currentColorToPaint
         LDA cursorSpeed
         STA countStepsBeforeCheckingJoystickInput
-        JSR PaintCursorAtCurrentPosition
 
-        JSR GetJoystickInput
 
-        LDA lastJoystickInput
-        AND #PAD_D
-        BEQ :++
-          INC cursorYPosition
-          LDA cursorYPosition
-          CMP #$18
-          BNE :+
-            LDA #$00
-            STA cursorYPosition
-          :
-        :
-
-        LDA lastJoystickInput
-        AND #PAD_U
-        BEQ :++
-          DEC cursorYPosition
-          LDA cursorYPosition
-          CMP #$FF
-          BNE :+
-            LDA #$17
-            STA cursorYPosition
-          :
-        :
-
-        LDA lastJoystickInput
-        AND #PAD_L
-        BEQ :++
-          DEC cursorXPosition
-          LDA cursorXPosition
-          CMP #$FF
-          BNE :+
-            LDA #CURSOR_EXTREME_RIGHT
-            STA cursorXPosition
-          :
-        :
-
-        LDA lastJoystickInput
-        AND #PAD_R
-        BEQ :++
-          INC cursorXPosition
-          LDA cursorXPosition
-          CMP #CURSOR_EXTREME_RIGHT
-          BCC :+
-            LDA #$00
-            STA cursorXPosition
-          :
-        :
-
-        LDA lastJoystickInput
-        AND #PAD_B
-        BEQ :++
-          INC currentSymmetrySetting
-          LDA currentSymmetrySetting
-          CMP #$05
-          BNE :+
-            LDA #$00
-            STA currentSymmetrySetting
-          :
-        :
-
-        LDA lastJoystickInput
-        AND #PAD_SELECT
-        BEQ :+
-          INC currentPatternElement
-          LDA currentPatternElement
-          AND #$0F
-          STA currentPatternElement
-        :
-
-b0D6D   LDA lastJoystickInput
-        AND #PAD_A
+        LDA playerPressedFire
+        AND #$01
         BNE PlayerHasPressedFire
 
         ; Player hasn't pressed fire.
         LDA #$00
         STA stepsSincePressedFire
-        JMP DrawCursorAndReturnFromInterrupt
+        JMP CheckKeyboardAndReturnFromInterrupt
         ; Returns
 
-        ; Player hasn't pressed fire.
+        ; Player has pressed fire.
 PlayerHasPressedFire   
+        LDA #$00
+        STA playerPressedFire
         LDA stepsExceeded255
         BEQ DecrementPulseWidthCounter
         LDA stepsSincePressedFire
         BEQ IncrementStepsSincePressedFire
-        JMP DrawCursorAndReturnFromInterrupt
+        JMP CheckKeyboardAndReturnFromInterrupt
 
 IncrementStepsSincePressedFire   
         INC stepsSincePressedFire
@@ -1237,7 +1147,7 @@ DecrementPulseWidthCounter
 DecrementPulseSpeedCounter   
         DEC currentPulseSpeedCounter
         BEQ RefreshPulseSpeed
-        JMP DrawCursorAndReturnFromInterrupt
+        JMP CheckKeyboardAndReturnFromInterrupt
 
 RefreshPulseSpeed   
         LDA pulseSpeed
@@ -1263,11 +1173,11 @@ UpdateBaseLevelArray
         BEQ UpdatePositionArrays
         LDA shouldDrawCursor
         AND trackingActivated
-        BEQ DrawCursorAndReturnFromInterrupt
+        BEQ CheckKeyboardAndReturnFromInterrupt
         TAX 
         LDA baseLevelArray,X
         CMP #$FF
-        BNE DrawCursorAndReturnFromInterrupt
+        BNE CheckKeyboardAndReturnFromInterrupt
 
         STX currentStepCount
 UpdatePositionArrays   
@@ -1299,13 +1209,6 @@ ApplySmoothingDelay
         STA framesRemainingToNextPaintForStep,X
         LDA currentSymmetrySetting
         STA symmetrySettingForStepCount,X
-
-DrawCursorAndReturnFromInterrupt    
-        LDA #CURSOR_TILE
-        STA currentColorToPaint
-        JSR PaintCursorAtCurrentPosition
-        JSR PPU_Update
-        ; Falls through
 
 CheckKeyboardAndReturnFromInterrupt    
         JSR CheckKeyboardInput
@@ -1341,6 +1244,7 @@ PaintCursorAtCurrentPosition
         ;LDA currentColorToPaint
         ;STA (currentLineInColorRamLoPtr),Y
         JSR AddCursorPixelToNMTUpdate
+        JSR PPU_Update
         RTS 
 
 ;-------------------------------------------------------
@@ -3905,6 +3809,118 @@ _Loop   LDA __DATA_LOAD__,Y
         BNE _Loop
 
         RTS 
+
+.segment "DATA"
+inputRateLimit   .BYTE $00
+.segment "CODE"
+;-------------------------------------------------------
+; CheckPlayerInput
+;-------------------------------------------------------
+CheckPlayerInput
+        INC inputRateLimit
+        LDA inputRateLimit
+        CMP #$60
+        BPL @CheckInput
+        RTS
+
+@CheckInput
+        LDA #$00
+        STA inputRateLimit
+
+        JSR GetJoystickInput
+
+        LDA lastJoystickInput
+        CMP #$00
+        BNE:+
+          LDA #CURSOR_TILE
+          STA currentColorToPaint
+          JSR PaintCursorAtCurrentPosition
+          RTS
+        :
+
+        LDA #$00
+        STA currentColorToPaint
+        JSR PaintCursorAtCurrentPosition
+
+        LDA lastJoystickInput
+        AND #PAD_D
+        BEQ :++
+          INC cursorYPosition
+          LDA cursorYPosition
+          CMP #$18
+          BNE :+
+            LDA #$00
+            STA cursorYPosition
+          :
+        :
+
+        LDA lastJoystickInput
+        AND #PAD_U
+        BEQ :++
+          DEC cursorYPosition
+          LDA cursorYPosition
+          CMP #$FF
+          BNE :+
+            LDA #$17
+            STA cursorYPosition
+          :
+        :
+
+        LDA lastJoystickInput
+        AND #PAD_L
+        BEQ :++
+          DEC cursorXPosition
+          LDA cursorXPosition
+          CMP #$FF
+          BNE :+
+            LDA #CURSOR_EXTREME_RIGHT
+            STA cursorXPosition
+          :
+        :
+
+        LDA lastJoystickInput
+        AND #PAD_R
+        BEQ :++
+          INC cursorXPosition
+          LDA cursorXPosition
+          CMP #CURSOR_EXTREME_RIGHT
+          BCC :+
+            LDA #$00
+            STA cursorXPosition
+          :
+        :
+
+        LDA lastJoystickInput
+        AND #PAD_B
+        BEQ :++
+          INC currentSymmetrySetting
+          LDA currentSymmetrySetting
+          CMP #$05
+          BNE :+
+            LDA #$00
+            STA currentSymmetrySetting
+          :
+        :
+
+        LDA lastJoystickInput
+        AND #PAD_SELECT
+        BEQ :+
+          INC currentPatternElement
+          LDA currentPatternElement
+          AND #$0F
+          STA currentPatternElement
+        :
+        LDA lastJoystickInput
+        AND #PAD_A
+        BEQ :+
+          LDA #01
+          STA playerPressedFire
+        :
+
+        LDA #CURSOR_TILE
+        STA currentColorToPaint
+        JSR PaintCursorAtCurrentPosition
+        RTS
 
 .include "presets.asm"
 .include "burst_generators.asm"
