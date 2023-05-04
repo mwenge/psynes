@@ -18,7 +18,11 @@ On Ubuntu you can install [FCEUX], the NES emulator, as follows:
 sudo apt install fceux
 ```
 
-Once you have that installed, you can [download the game](https://github.com/mwenge/psynes/raw/master/bin/psychedelia.nes) and play it.
+Once you have that installed, you can [download the game](https://github.com/mwenge/psynes/raw/master/bin/psychedelia.nes) and play it:
+
+```
+fceux psychedelia.nes
+```
 
 ### Controls
 You have less fine-grained control than on the C64 version as this version uses the gamepad only. Apart from
