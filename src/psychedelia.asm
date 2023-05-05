@@ -576,7 +576,15 @@ AddPixelToNMTUpdate
         LDA presetColorValuesArray,Y
         STA currentColorToPaint
 
+        ; Don't update a pixel if we're not changing its
+        ; color.
         LDY pixelXPosition
+        LDA (screenBufferLoPtr),Y
+        CMP currentColorToPaint
+        BNE:+
+          RTS
+        :
+        LDA currentColorToPaint
         STA (screenBufferLoPtr),Y
 
         ; Write to the actual screen (the PPU).
