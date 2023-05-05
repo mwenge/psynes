@@ -3871,6 +3871,14 @@ CheckPlayerInput
           STA currentPatternElement
         :
 
+        LDA releasedButtons
+        AND #PAD_START
+        BEQ :+
+          LDA lineModeActivated
+          EOR #$01
+          STA lineModeActivated
+        :
+
         INC inputRateLimit
         LDA inputRateLimit
         CMP #$60
