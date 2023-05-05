@@ -48,7 +48,6 @@ presetSequenceDataLoPtr          .res 1
 presetSequenceDataHiPtr          .res 1
 currentSequencePtrLo             .res 1
 currentSequencePtrHi             .res 1
-lastJoystickInput                .res 1
 customPatternLoPtr               .res 1
 customPatternHiPtr               .res 1
 minIndexToColorValues            .res 1
@@ -61,9 +60,14 @@ colorRamLoPtr                    .res 1
 colorRamHiPtr                    .res 1
 screenBufferLoPtr                .RES 1
 screenBufferHiPtr                .RES 1
-paletteLoPtr .RES 1
-paletteHiPtr .RES 1
-playerPressedFire .res 1
+paletteLoPtr                     .RES 1
+paletteHiPtr                     .RES 1
+playerPressedFire                .res 1
+previousFrameButtons             .res 1
+buttons                          .res 1
+pressedButtons                   .res 1
+releasedButtons                  .res 1
+inputRateLimit                   .res 1
 
 shiftKey                      = $028D
 storageOfSomeKind             = $7FFF
@@ -588,7 +592,7 @@ AddPixelToNMTUpdate
         STX NMT_UPDATE_LEN
 
         ; If we've got a few to write, let them do that now.
-        CPX #$80
+        CPX #$70
         BMI @UpdateComplete
         JSR SetPaletteForPixelPosition
         JSR PPU_Update
@@ -3083,7 +3087,7 @@ playbackOrRecordActive
 ;-------------------------------------------------------
 RecordJoystickMovements    
         LDA $DC00    ;CIA1: Data Port Register A
-        STA lastJoystickInput
+        STA buttons
         LDY #$00
         CMP (recordingStorageLoPtr),Y
         BEQ b1B70
@@ -3167,16 +3171,31 @@ GamepadPoll
           ROR
           DEX
           BNE :-
-        STA lastJoystickInput
+        STA buttons
         RTS
 
+.segment "CODE"
 ;-------------------------------------------------------
 ; GetJoystickInput
 ;-------------------------------------------------------
 GetJoystickInput   
-        ; Just populate lastJoystickInput for now.
+
+        ; Just populate buttons for now.
         ;JSR PerformRandomJoystickMovement
         JSR GamepadPoll
+
+        lda buttons
+        eor #%11111111
+        and previousFrameButtons
+        STA releasedButtons
+
+        lda previousFrameButtons
+        eor #%11111111
+        and buttons
+        STA pressedButtons
+
+        LDA buttons
+        STA previousFrameButtons
         RTS
 
         LDA playbackOrRecordActive
@@ -3192,7 +3211,7 @@ b1B8C   LDA demoModeActive
         JMP PerformRandomJoystickMovement
 
 b1B94   LDA $DC00    ;CIA1: Data Port Register A
-        STA lastJoystickInput
+        STA buttons
         RTS 
 
 PlaybackRecordedJoystickInputs    
@@ -3201,7 +3220,7 @@ PlaybackRecordedJoystickInputs
 
         LDY #$00
         LDA (recordingStorageLoPtr),Y
-        STA lastJoystickInput
+        STA buttons
         RTS 
 
 b1BA6   LDA recordingStorageLoPtr
@@ -3220,7 +3239,7 @@ b1BA6   LDA recordingStorageLoPtr
         STA recordingOffset
         DEY 
         LDA (recordingStorageLoPtr),Y
-        STA lastJoystickInput
+        STA buttons
         RTS 
 
 b1BC6   LDA #>dynamicStorage
@@ -3734,7 +3753,7 @@ b1F2D   JSR PutRandomByteInAccumulator
 ;        AND #$F0
 ;        ORA joystickInputRandomizer
 ;        EOR #$1F
-        STA lastJoystickInput
+        STA buttons
         DEC demoModeCountDownToChangePreset
         BEQ b1F51
         RTS 
@@ -3810,13 +3829,33 @@ _Loop   LDA __DATA_LOAD__,Y
 
         RTS 
 
-.segment "DATA"
-inputRateLimit   .BYTE $00
 .segment "CODE"
 ;-------------------------------------------------------
 ; CheckPlayerInput
 ;-------------------------------------------------------
 CheckPlayerInput
+        JSR GetJoystickInput
+        LDA releasedButtons
+        AND #PAD_SELECT
+        BEQ :++
+          INC currentSymmetrySetting
+          LDA currentSymmetrySetting
+          CMP #$05
+          BNE :+
+            LDA #$00
+            STA currentSymmetrySetting
+          :
+        :
+
+        LDA releasedButtons
+        AND #PAD_B
+        BEQ :+
+          INC currentPatternElement
+          LDA currentPatternElement
+          AND #$0F
+          STA currentPatternElement
+        :
+
         INC inputRateLimit
         LDA inputRateLimit
         CMP #$60
@@ -3827,9 +3866,7 @@ CheckPlayerInput
         LDA #$00
         STA inputRateLimit
 
-        JSR GetJoystickInput
-
-        LDA lastJoystickInput
+        LDA buttons
         CMP #$00
         BNE:+
           LDA #CURSOR_TILE
@@ -3842,7 +3879,7 @@ CheckPlayerInput
         STA currentColorToPaint
         JSR PaintCursorAtCurrentPosition
 
-        LDA lastJoystickInput
+        LDA buttons
         AND #PAD_D
         BEQ :++
           INC cursorYPosition
@@ -3854,7 +3891,7 @@ CheckPlayerInput
           :
         :
 
-        LDA lastJoystickInput
+        LDA buttons
         AND #PAD_U
         BEQ :++
           DEC cursorYPosition
@@ -3866,7 +3903,7 @@ CheckPlayerInput
           :
         :
 
-        LDA lastJoystickInput
+        LDA buttons
         AND #PAD_L
         BEQ :++
           DEC cursorXPosition
@@ -3878,7 +3915,7 @@ CheckPlayerInput
           :
         :
 
-        LDA lastJoystickInput
+        LDA buttons
         AND #PAD_R
         BEQ :++
           INC cursorXPosition
@@ -3890,27 +3927,7 @@ CheckPlayerInput
           :
         :
 
-        LDA lastJoystickInput
-        AND #PAD_B
-        BEQ :++
-          INC currentSymmetrySetting
-          LDA currentSymmetrySetting
-          CMP #$05
-          BNE :+
-            LDA #$00
-            STA currentSymmetrySetting
-          :
-        :
-
-        LDA lastJoystickInput
-        AND #PAD_SELECT
-        BEQ :+
-          INC currentPatternElement
-          LDA currentPatternElement
-          AND #$0F
-          STA currentPatternElement
-        :
-        LDA lastJoystickInput
+        LDA buttons
         AND #PAD_A
         BEQ :+
           LDA #01
