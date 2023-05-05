@@ -546,20 +546,26 @@ ActuallyPaintPixel
         RTS 
 
 ;-------------------------------------------------------
+; SetPaletteForPixelPosition
 ;-------------------------------------------------------
 SetPaletteForPixelPosition
-        LDX baseLevelForCurrentPixel
-        LDY presetColorValuesArray,X
+        LDA currentColorToPaint
+        TAY
 
         LDA paletteArrayLoPtr,Y
         STA paletteLoPtr
         LDA paletteArrayHiPtr,Y
         STA paletteHiPtr
-
-
         RTS
 
-.segment "CODE"
+SetColorForPixelPosition
+        LDA currentColorToPaint
+        BNE:+
+          RTS
+        :
+        LDA pixelXPosition
+        AND #$05
+        RTS
 
 ;-------------------------------------------------------
 ; AddPixelToNMTUpdate
@@ -568,6 +574,8 @@ AddPixelToNMTUpdate
         ; Write to the screen buffer.
         LDY baseLevelForCurrentPixel
         LDA presetColorValuesArray,Y
+        STA currentColorToPaint
+
         LDY pixelXPosition
         STA (screenBufferLoPtr),Y
 
@@ -584,8 +592,7 @@ AddPixelToNMTUpdate
         STA NMT_UPDATE, X
         INX
 
-        LDY baseLevelForCurrentPixel
-        LDA presetColorValuesArray,Y
+        LDA currentColorToPaint
         STA NMT_UPDATE, X
         INX
 
