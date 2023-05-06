@@ -10,34 +10,34 @@ paletteArrayHiPtr
 ; Background Palettes
 palette1
 .BYTE $0F,$00,$10,$20
-.BYTE $0F,$10,$10,$10
-.BYTE $0F,$20,$20,$20
-.BYTE $0F,$30,$20,$30
+.BYTE $0F,$11,$21,$31
+.BYTE $0F,$12,$22,$32
+.BYTE $0F,$13,$23,$33
 palette2
-.BYTE $0F,$11,$21,$31
-.BYTE $0F,$11,$21,$21
-.BYTE $0F,$11,$21,$11
-.BYTE $0F,$11,$21,$31
+.BYTE $0F,$14,$24,$34
+.BYTE $0F,$15,$25,$35
+.BYTE $0F,$16,$26,$36
+.BYTE $0F,$17,$27,$37
 palette3
-.BYTE $0F,$12,$22,$32
-.BYTE $0F,$12,$22,$32
-.BYTE $0F,$12,$22,$32
-.BYTE $0F,$12,$22,$32
+.BYTE $0F,$18,$28,$38
+.BYTE $0F,$19,$29,$39
+.BYTE $0F,$1A,$2A,$3A
+.BYTE $0F,$1B,$2B,$3B
 palette4
-.BYTE $0F,$13,$23,$33
-.BYTE $0F,$13,$23,$33
-.BYTE $0F,$13,$23,$33
+.BYTE $0F,$1C,$2C,$3C
+.BYTE $0F,$19,$29,$39
+.BYTE $0F,$1A,$2A,$3A
 .BYTE $0F,$13,$23,$33
 palette5
-.BYTE $0F,$14,$24,$34
-.BYTE $0F,$14,$24,$34
-.BYTE $0F,$14,$24,$34
-.BYTE $0F,$14,$24,$34
+.BYTE $0F,$16,$26,$36
+.BYTE $0F,$17,$27,$37
+.BYTE $0F,$1A,$2A,$3A
+.BYTE $0F,$1B,$2B,$3B
 palette6
-.BYTE $0F,$15,$25,$35
-.BYTE $0F,$15,$25,$35
-.BYTE $0F,$15,$25,$35
-.BYTE $0F,$15,$25,$35
+.BYTE $0F,$1A,$2A,$3A
+.BYTE $0F,$1B,$2B,$3B
+.BYTE $0F,$19,$29,$39
+.BYTE $0F,$14,$24,$34
 palette7
 .BYTE $0F,$16,$26,$36
 .BYTE $0F,$16,$26,$36
