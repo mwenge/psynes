@@ -5,12 +5,16 @@ Jeff Minter never ported his game [Psychedelia] to the Nintendo Entertainment sy
 
 <!-- vim-markdown-toc GFM -->
 
+* [Play Online](#play-online)
 * [Play](#play)
   * [Controls](#controls)
 * [Build](#build)
 * [About](#about)
 
 <!-- vim-markdown-toc -->
+
+## Play Online
+You can play it [online here](https://mwenge.github.io/psynes).
 
 ## Play
 On Ubuntu you can install [FCEUX], the NES emulator, as follows:
