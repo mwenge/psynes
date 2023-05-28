@@ -1,5 +1,5 @@
 # Psychedelia by Jeff Minter (NES)
-<img src="https://user-images.githubusercontent.com/58846/236032019-893943fa-659e-4ac0-9242-4ed6b0fe3a4f.gif" height=300><img src="https://user-images.githubusercontent.com/58846/236034673-b2414ffb-12a7-4650-966b-c276b5b374a7.jpg" height=300>
+<img src="https://github.com/mwenge/psynes/assets/58846/d6dc378f-137c-41eb-bdd7-f9ccb2ab0887" height=400>
 
 Jeff Minter never ported his game [Psychedelia] to the Nintendo Entertainment system. So I did. Maybe I don't know what I'm doing.
 
